@@ -40,11 +40,11 @@ def create_channel_representation(port, peers=None):
     and properties.
     """
     return {
-        'uuid': get_channel_uuid(port),
-        'channel_type': get_channel_type(port),
-        'peers': list(map(create_peer_representation, peers)) if peers else [],
-        'status': get_channel_status(port),
-        'properties': get_channel_properties(port)
+        "uuid": get_channel_uuid(port),
+        "channel_type": get_channel_type(port),
+        "peers": list(map(create_peer_representation, peers)) if peers else [],
+        "status": get_channel_status(port),
+        "properties": get_channel_properties(port),
     }
 
 
@@ -62,9 +62,9 @@ def create_peer_representation(port):
     Returns: A ``dict`` containing the peer's uuid, status, and properties.
     """
     return {
-        'uuid': get_channel_uuid(port),
-        'status': get_channel_status(port),
-        'properties': get_channel_properties(port),
+        "uuid": get_channel_uuid(port),
+        "status": get_channel_status(port),
+        "properties": get_channel_properties(port),
     }
 
 
@@ -78,7 +78,8 @@ def get_binding_profile_attribute(port, attr):
     val = profile.get(attr)
     if not val:
         raise MalformedChannel(
-            f"Port {port['id']} missing required binding:profile attribute {attr}.")
+            f"Port {port['id']} missing required binding:profile attribute {attr}."
+        )
     return val
 
 
@@ -90,19 +91,19 @@ def create_hub_peer_representation(spoke):
     Args:
         spoke: The spoke port that will be represented
     """
-    pubkey = get_binding_profile_attribute(spoke, 'public_key')
-    endpoint = get_binding_profile_attribute(spoke, 'endpoint')
-    allowed_ips = ','.join([ip['ip_address'] for ip in get_fixed_ips(spoke)])
+    pubkey = get_binding_profile_attribute(spoke, "public_key")
+    endpoint = get_binding_profile_attribute(spoke, "endpoint")
+    allowed_ips = ",".join([ip["ip_address"] for ip in get_fixed_ips(spoke)])
     return f"{pubkey}|{endpoint}|{allowed_ips}"
 
 
 def get_fixed_ips(spoke):
-    return spoke['fixed_ips']
+    return spoke["fixed_ips"]
 
 
 def get_channel_properties(port):
     """Retreives a channel's binding:profile dict"""
-    return port['binding:profile']
+    return port["binding:profile"]
 
 
 def get_channel_type(port):
@@ -118,38 +119,39 @@ def get_channel_type(port):
     valid_device_owner = device_owner_pattern.match(device_owner)
     if not valid_device_owner:
         raise MalformedChannel(
-            f"Port {port['id']} has invalid device_owner: {device_owner}.")
-    channel_type = valid_device_owner.group('channel_type')
+            f"Port {port['id']} has invalid device_owner: {device_owner}."
+        )
+    channel_type = valid_device_owner.group("channel_type")
     if channel_type not in VALID_CHANNEL_TYPES:
         raise MalformedChannel(f"Channel type '{channel_type}' is not supported.")
     return channel_type
 
 
 def get_channel_network_id(port):
-    return port['network_id']
+    return port["network_id"]
 
 
 def get_channel_device_owner(port):
-    return port['device_owner']
+    return port["device_owner"]
 
 
-get_spoke_channel_public_key = partial(get_binding_profile_attribute, attr='public_key')
+get_spoke_channel_public_key = partial(get_binding_profile_attribute, attr="public_key")
 
 
 def get_channel_uuid(port):
-    return port['id']
+    return port["id"]
 
 
 def get_channel_endpoint(port):
-    return port['endpoint']
+    return port["endpoint"]
 
 
 def get_channel_status(port):
-    return port['status']
+    return port["status"]
 
 
 def get_channel_project_id(port):
-    return port['project_id']
+    return port["project_id"]
 
 
 def get_channel_peers_spokes(spokes, hubs):
@@ -184,7 +186,7 @@ def get_channel_peers_spokes(spokes, hubs):
     # We determine a hub to be a peer if it has an entry with ``port``'s public key
     # in its own list of peers
     for hub in hubs:
-        peers = get_channel_properties(hub).get('peers')
+        peers = get_channel_properties(hub).get("peers")
         if not peers:
             continue
         for peer in peers:
@@ -194,17 +196,20 @@ def get_channel_peers_spokes(spokes, hubs):
             if not valid_peer:
                 raise MalformedChannel(
                     f"Hub channel {get_channel_uuid(hub)} "
-                    f"has invalid peer entry: {peer}")
+                    f"has invalid peer entry: {peer}"
+                )
             hubs_by_peer_representation.setdefault(peer, [])
             hubs_by_peer_representation[peer].append(hub)
 
     return {
         get_channel_uuid(spoke): hubs_by_peer_representation.get(
-            create_hub_peer_representation(spoke),
-            []) for spoke in spokes
+            create_hub_peer_representation(spoke), []
+        )
+        for spoke in spokes
     }
 
 
 def filter_ports_by_device_owner(filter_regex, port_list):
     return list(
-        filter(lambda p: filter_regex.match(get_channel_device_owner(p)), port_list))
+        filter(lambda p: filter_regex.match(get_channel_device_owner(p)), port_list)
+    )
