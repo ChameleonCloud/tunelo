@@ -30,8 +30,8 @@ class WSGIService(service.ServiceBase):
         )
         if self.workers and self.workers < 1:
             raise exception.ConfigInvalid(
-                _("api_workers value of %d is invalid, " "must be greater than 0.")
-                % self.workers
+                f"api_workers value of {self.workers} is invalid, "
+                f"must be greater than 0."
             )
 
         self.server = wsgi.Server(
