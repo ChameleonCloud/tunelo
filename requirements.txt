@@ -1,0 +1,10 @@
+Flask
+keystonemiddleware
+WebOb
+Werkzeug
+keystoneauth1
+neutron
+osprofiler
+oslo.context
+oslo.middleware
+python-neutronclient

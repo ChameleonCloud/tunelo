@@ -128,9 +128,29 @@ class NotFound(TuneloException):
     code = http_client.NOT_FOUND
 
 
+class CatalogNotFound(TuneloException):
+    _msg_fmt = (
+        "Service type %(service_type)s with endpoint type "
+        "%(endpoint_type)s not found in keystone service catalog."
+    )
+
+
+class KeystoneUnauthorized(TuneloException):
+    _msg_fmt = "Not authorized in Keystone."
+
+
+class KeystoneFailure(TuneloException):
+    """Unhandled Keystone failure wrapper."""
+    pass
+
+
 class Conflict(TuneloException):
     _msg_fmt = "Conflict."
     code = http_client.CONFLICT
+
+
+class ConfigInvalid(TuneloException):
+    _msg_fmt = "Invalid configuration."
 
 
 class TemporaryFailure(TuneloException):
@@ -143,4 +163,9 @@ class InvalidParameterValue(Invalid):
 
 
 class MissingParameterValue(Invalid):
-    _msg_fmt = "%(msg)s"
+    _msg_fmt = "Missing %(msg)s"
+
+
+class MalformedChannel(TuneloException):
+    _msg_fmt = "Malformed channel (%(msg)s)"
+    code = http_client.NOT_ACCEPTABLE

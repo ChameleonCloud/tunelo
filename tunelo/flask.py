@@ -26,6 +26,7 @@ def create_app(test_config=None):
     else:
         # TODO: set anything relevant from CONF
         app.config.update(PROPAGATE_EXCEPTIONS=True)
+        app.config.update(JSON_SORT_KEYS=False)
 
     try:
         os.makedirs(app.instance_path)
@@ -52,7 +53,14 @@ def create_app(test_config=None):
 
     from .api import root
     app.register_blueprint(root.bp)
-    #app.register_blueprint(some_blueprint.bp, url_prefix="/v1/...")
+    from .api import list_channels
+    app.register_blueprint(list_channels.bp)
+    from .api import get_channel
+    app.register_blueprint(get_channel.bp)
+    from .api import create_channel
+    app.register_blueprint(create_channel.bp)
+    from .api import destroy_channel
+    app.register_blueprint(destroy_channel.bp)
     app.logger.info("Registered apps")
 
     # Propagate gunicorn log level to Flask
