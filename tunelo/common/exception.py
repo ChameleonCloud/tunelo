@@ -141,6 +141,7 @@ class KeystoneUnauthorized(TuneloException):
 
 class KeystoneFailure(TuneloException):
     """Unhandled Keystone failure wrapper."""
+
     pass
 
 

@@ -50,8 +50,8 @@ def ks_exceptions(f):
         except (ks_exception.Unauthorized, ks_exception.AuthorizationFailure):
             raise exception.KeystoneUnauthorized()
         except (
-                ks_exception.NoMatchingPlugin,
-                ks_exception.MissingRequiredOptions,
+            ks_exception.NoMatchingPlugin,
+            ks_exception.MissingRequiredOptions,
         ) as e:
             raise exception.ConfigInvalid(str(e))
         except Exception as e:

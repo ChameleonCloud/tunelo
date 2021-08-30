@@ -52,15 +52,25 @@ def create_app(test_config=None):
     app.after_request(_add_vary_x_auth_token_header)
 
     from .api import root
+
     app.register_blueprint(root.bp)
+
     from .api import list_channels
+
     app.register_blueprint(list_channels.bp)
+
     from .api import get_channel
+
     app.register_blueprint(get_channel.bp)
+
     from .api import create_channel
+
     app.register_blueprint(create_channel.bp)
+
     from .api import destroy_channel
+
     app.register_blueprint(destroy_channel.bp)
+
     app.logger.info("Registered apps")
 
     # Propagate gunicorn log level to Flask

@@ -9,11 +9,12 @@ from tunelo.common.exception import Invalid
 from tunelo.common.exception import InvalidParameterValue
 from tunelo.common.exception import MissingParameterValue
 
-spoke_device_owner_pattern = re.compile(r'channel:(?P<channel_type>.*):spoke')
-hub_device_owner_pattern = re.compile(r'channel:(?P<channel_type>.*):hub')
-device_owner_pattern = re.compile(r'channel:(?P<channel_type>.*):(spoke|hub)')
+spoke_device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):spoke")
+hub_device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):hub")
+device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):(spoke|hub)")
 valid_hub_peer_pattern = re.compile(
-    r'(?P<public_key>.+)\|(?P<endpoint>.*)\|(?P<allowed_ips>.+)')
+    r"(?P<public_key>.+)\|(?P<endpoint>.*)\|(?P<allowed_ips>.+)"
+)
 
 
 class SchemaItem(object):
@@ -91,7 +92,8 @@ class SchemaValidator(object):
             # Only validate a parameter if it is provided
             elif not schema_item.validate(value):
                 raise InvalidParameterValue(
-                    f"{param} — {schema_item.error_message} ({value})")
+                    f"{param} — {schema_item.error_message} ({value})"
+                )
 
 
 def _schema_always_valid(_):
@@ -136,12 +138,14 @@ VALID_CHANNEL_TYPES = {
     "wireguard": SchemaValidator(
         strict=False,
         # The endpoint on which the spoke port will listen
-        endpoint=SchemaItem(validate_ip, optional=True,
-                            error_message="Invalid IP address."),
+        endpoint=SchemaItem(
+            validate_ip, optional=True, error_message="Invalid IP address."
+        ),
         # The public key for the spoke port
-        public_key=SchemaItem(validate_public_key,
-                              error_message="Must be a 32-bit value "
-                                            "encoded in base64 format."),
+        public_key=SchemaItem(
+            validate_public_key,
+            error_message="Must be a 32-bit value " "encoded in base64 format.",
+        ),
     )
 }
 
@@ -151,16 +155,21 @@ CREATE_CHANNEL_SCHEMA = SchemaValidator(
     # The project ID for the channel
     project_id=SchemaItem(validate_uuid, error_message="Invalid UUID."),
     # The subnet on which the channel will operate (UUID or CIDR) (optional)
-    subnet=SchemaItem(lambda subnet: validate_uuid(subnet) or validate_cidr(subnet),
-                      optional=True,
-                      error_message="Subnet must be either a Neutron subnet UUID, "
-                                    "or a subnet in valid CIDR notation."),
+    subnet=SchemaItem(
+        lambda subnet: validate_uuid(subnet) or validate_cidr(subnet),
+        optional=True,
+        error_message="Subnet must be either a Neutron subnet UUID, "
+        "or a subnet in valid CIDR notation.",
+    ),
     # Local address on subnet where the channel will be located (optional)
-    channel_address=SchemaItem(validate_ip, optional=True,
-                               error_message="Invalid IP address."),
+    channel_address=SchemaItem(
+        validate_ip, optional=True, error_message="Invalid IP address."
+    ),
     # Channel type, must be a string from the set of VALID_CHANNEL_TYPES
     channel_type=SchemaItem(_schema_always_valid),
     # Channel properties, which must be appropriate according to channel_type
-    properties=SchemaItem(lambda properties: type(properties) is dict,
-                          error_message="Properties must be valid JSON."),
+    properties=SchemaItem(
+        lambda properties: type(properties) is dict,
+        error_message="Properties must be valid JSON.",
+    ),
 )
