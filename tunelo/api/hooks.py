@@ -3,8 +3,10 @@ from functools import wraps
 from typing import TYPE_CHECKING
 
 from flask import request
+from keystoneauth1 import session as ks_session
 from keystonemiddleware.auth_token import AuthProtocol
 from keystonemiddleware.auth_token._request import _AuthTokenRequest
+from neutronclient.v2_0 import client as neutron_client
 from oslo_log import log
 from oslo_policy.policy import PolicyNotAuthorized
 from webob import exc as webob_exc
@@ -13,6 +15,7 @@ from werkzeug import exceptions as werkzeug_exc
 from tunelo.api.utils import make_error_response
 from tunelo.common import context as tunelo_context
 from tunelo.common import exception
+from tunelo.common import keystone
 from tunelo.conf import CONF
 
 if TYPE_CHECKING:
@@ -20,6 +23,8 @@ if TYPE_CHECKING:
 
 
 LOG = log.getLogger(__name__)
+
+_NEUTRON_CLIENT = None
 
 
 class AuthTokenFlaskMiddleware(object):
@@ -84,6 +89,19 @@ class ContextMiddleware(object):
         return res
 
 
+def get_neutron_client():
+    """Returns an authenticated Neutron client.
+
+    The client is created only the first time this function is called.
+    """
+    global _NEUTRON_CLIENT
+    if not _NEUTRON_CLIENT:
+        auth = keystone.get_auth("neutron")
+        session = ks_session.Session(auth=auth)
+        _NEUTRON_CLIENT = neutron_client.Client(session=session, raise_errors=False)
+    return _NEUTRON_CLIENT
+
+
 def route(rule, blueprint: "Blueprint" = None, json_body=None, **options):
     """Decorator which exposes a function as a Flask handler and handles errors.
 
@@ -123,6 +141,8 @@ def route(rule, blueprint: "Blueprint" = None, json_body=None, **options):
                 return make_error_response(str(exc), 404)
             except exception.Conflict as exc:
                 return make_error_response(str(exc), 409)
+            except exception.MalformedChannel as exc:
+                return make_error_response(str(exc), 500)
             except werkzeug_exc.HTTPException as exc:
                 # Let Flask handle these with default behavior
                 raise

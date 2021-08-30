@@ -13,7 +13,7 @@
 # limitations under the License.
 try:
     from importlib.metadata import version
-except:
+except Exception:
     # Python < 3.7
     from importlib_metadata import version
 
@@ -21,5 +21,5 @@ PROJECT_NAME = "tunelo"
 
 try:
     __version__ = version(__name__)
-except:
-    pass
+except Exception:
+    __version__ = "0.0.0"
