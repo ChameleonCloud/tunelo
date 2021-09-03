@@ -1,27 +1,23 @@
+import random
 from ipaddress import IPv4Address
 from ipaddress import IPv4Network
 from ipaddress import ip_address
 from ipaddress import ip_network
 
-from flask import Blueprint
-from flask import request
 from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 
+from tunelo.api import schema
+from tunelo.api.hooks import channel_endpoint_blueprint
 from tunelo.api.hooks import get_neutron_client
 from tunelo.api.hooks import route
-from tunelo.api.schema import CREATE_CHANNEL_SCHEMA
-from tunelo.api.schema import VALID_CHANNEL_TYPES
 from tunelo.api.schema import hub_device_owner_pattern
-from tunelo.api.schema import validate_uuid
 from tunelo.api.utils import create_channel_representation
 from tunelo.api.utils import filter_ports_by_device_owner
 from tunelo.common.exception import Conflict
 from tunelo.common.exception import Invalid
 from tunelo.common.exception import InvalidParameterValue
 from tunelo.common.exception import NotFound
-
-bp = Blueprint("CreateChannel", __name__)
 
 KEY_ID = "id"
 KEY_NAME = "name"
@@ -45,8 +41,14 @@ KEY_BINDING_PROFILE = "binding:profile"
 neutron = get_neutron_client()
 
 
-@route("/CreateChannel", bp, methods=["POST"])
-def create_channel():
+@route(
+    "/channels",
+    blueprint=channel_endpoint_blueprint,
+    json_body="channel_definition",
+    methods=["POST"],
+)
+@schema.validate(channel_definition=schema.CREATE_CHANNEL_SCHEMA)
+def create_channel(channel_definition=None):
     """Implements API function CreateChannel
 
     Follows a number of branching paths to create a new channel. The high level overview
@@ -57,24 +59,13 @@ def create_channel():
         2.
 
     """
-    if len(request.get_data()) == 0:
-        raise Invalid(
-            "CreateChannel requires a channel description in the request body."
-        )
-    channel_definition = request.get_json()
-    CREATE_CHANNEL_SCHEMA.validate_schema(channel_definition)
-
     # Schema is validated, so we are free to make unchecked assumptions
     # about the format of the data in the payload
     channel_type = channel_definition[KEY_CHANNEL_TYPE]
-    if channel_type not in VALID_CHANNEL_TYPES:
+    if channel_type not in schema.VALID_CHANNEL_TYPES:
         raise InvalidParameterValue(f"Unknown channel type {channel_type}")
 
-    # Externally validate the properties schema since this is the only code path that
-    # can look up the proper schema via channel_type
     properties = channel_definition[KEY_PROPERTIES]
-    properties_schema = VALID_CHANNEL_TYPES[channel_type]
-    properties_schema.validate_schema(properties)
 
     name = channel_definition.get(KEY_NAME)
     project_id = channel_definition[KEY_PROJECT_ID]
@@ -105,14 +96,16 @@ def create_channel():
 def resolve_subnet(subnet, channel_address, project_id):
     """ """
     # First, determine if the provided subnet is a UUID or an IP address
-    subnet_is_uuid = validate_uuid(subnet)
+    try:
+        subnet_is_uuid = schema.uuid("", subnet) is not None
+    except InvalidParameterValue:
+        subnet_is_uuid = False
     if subnet_is_uuid:
         # If the subnet is a UUID, we fetch that subnet and make sure it's valid
         try:
-            matching_subnets = neutron.show_subnet(subnet)
+            matching_subnets = neutron.show_subnet(subnet)["subnets"]
             # Change key 'subnet' to 'subnets' to be consistent with other code paths
-            matching_subnets["subnets"] = [matching_subnets.pop("subnet")]
-            if matching_subnets["subnets"][0][KEY_PROJECT_ID] != project_id:
+            if matching_subnets[0][KEY_PROJECT_ID] != project_id:
                 raise InvalidParameterValue(
                     f"Subnet {subnet} is not associated with project {project_id}"
                 )
@@ -120,26 +113,28 @@ def resolve_subnet(subnet, channel_address, project_id):
             raise NotFound(f"Subnet {subnet} not found.")
     elif not subnet:
         # If a subnet is not provided, we try to find one for the channel address
-        matching_subnets = neutron.list_subnets(project_id=project_id)
+        matching_subnets = neutron.list_subnets(project_id=project_id)["subnets"]
         if channel_address:
             # If channel address is provided, we narrow the search further to a subnet
             # which can hold the channel address
             channel_ip = ip_address(channel_address)
-            matching_subnets["subnets"] = [
+            matching_subnets = [
                 sub
                 for sub in matching_subnets["subnets"]
                 if channel_ip in ip_network(sub[KEY_CIDR])
             ]
     else:
         # If the subnet is in CIDR, find a matching subnet for the project
-        matching_subnets = neutron.list_subnets(cidr=subnet, project_id=project_id)
+        matching_subnets = neutron.list_subnets(cidr=subnet, project_id=project_id)[
+            "subnets"
+        ]
 
-    if len(matching_subnets["subnets"]) == 0:
+    if len(matching_subnets) == 0:
         # If no subnet matching our criteria exists, we have to create a new one
         # on a valid network
         subnet_meta = new_subnet(project_id, subnet, channel_address)
     else:
-        subnet_meta = matching_subnets["subnets"][0]
+        subnet_meta = matching_subnets[0]
 
     return subnet_meta
 
@@ -156,13 +151,11 @@ def new_subnet(project_id, cidr, channel_address):
         ip_version = 4 if type(ip_network(cidr)) is IPv4Network else 6
         subnet_meta = neutron.create_subnet(
             {
-                "subnets": [
-                    {
-                        KEY_CIDR: cidr,
-                        "ip_version": ip_version,
-                        "network_id": network[KEY_ID],
-                    }
-                ],
+                "subnet": {
+                    KEY_CIDR: cidr,
+                    "ip_version": ip_version,
+                    "network_id": network[KEY_ID],
+                }
             }
         )
     else:
@@ -178,13 +171,11 @@ def new_subnet(project_id, cidr, channel_address):
                 # Default subnet for IPv6 will use a 64 byte prefix
                 new_cidr = ":".join(str(ip).split(":")[:-4]) + "::0/64"
             create_subnet_body = {
-                "subnets": [
-                    {
-                        "network_id": network[KEY_ID],
-                        "ip_version": ip_version,
-                        "cidr": new_cidr,
-                    }
-                ]
+                "subnet": {
+                    "network_id": network[KEY_ID],
+                    "ip_version": ip_version,
+                    "cidr": new_cidr,
+                }
             }
         else:
             # If no CIDR or channel address is provided, we will grab a random subnet
@@ -198,13 +189,11 @@ def new_subnet(project_id, cidr, channel_address):
                     f"to provision new subnet."
                 )
             create_subnet_body = {
-                "subnets": [
-                    {"network_id": network[KEY_ID], "subnetpool": subnet_pools[0]}
-                ]
+                "subnet": {"network_id": network[KEY_ID], "subnetpool": subnet_pools[0]}
             }
         subnet_meta = neutron.create_subnet(create_subnet_body)
 
-    return subnet_meta["subnets"][0]
+    return subnet_meta["subnet"]
 
 
 def resolve_host(channel_type):
@@ -212,7 +201,7 @@ def resolve_host(channel_type):
     agents = neutron.list_agents(binary=f"neutron-{channel_type}-agent")
     if len(agents["agents"]) == 0:
         raise NotFound(f"Could not find any hosts running {channel_type} agent.")
-    return agents["agents"][0][KEY_HOST]
+    return random.choice(agents["agents"])[KEY_HOST]
 
 
 def resolve_hub(subnet_meta, project_id, name, channel_type):
@@ -222,14 +211,11 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     subnet_id = subnet_meta[KEY_ID]
     ports = neutron.list_ports(project_id=project_id)
     hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports["ports"])
-    hubs_in_subnet = list(
-        filter(
-            lambda hub: any(
-                fip[KEY_SUBNET_ID] == subnet_id for fip in hub[KEY_FIXED_IP]
-            ),
-            hubs,
-        )
-    )
+    hubs_in_subnet = [
+        hub
+        for hub in hubs
+        if any(fip[KEY_SUBNET_ID] == subnet_id for fip in hub[KEY_FIXED_IP])
+    ]
 
     if len(hubs_in_subnet) > 0:
         # If there are any existing hubs in the subnet, latch onto the first one
