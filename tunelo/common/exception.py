@@ -169,4 +169,4 @@ class MissingParameterValue(Invalid):
 
 class MalformedChannel(TuneloException):
     _msg_fmt = "Malformed channel (%(msg)s)"
-    code = http_client.NOT_ACCEPTABLE
+    code = http_client.INTERNAL_SERVER_ERROR

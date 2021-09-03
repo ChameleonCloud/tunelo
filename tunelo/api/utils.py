@@ -1,3 +1,4 @@
+from collections import defaultdict
 from functools import partial
 
 from flask import make_response
@@ -42,7 +43,7 @@ def create_channel_representation(port, peers=None):
     return {
         "uuid": get_channel_uuid(port),
         "channel_type": get_channel_type(port),
-        "peers": list(map(create_peer_representation, peers)) if peers else [],
+        "peers": [create_hub_peer_representation(peer) for peer in peers],
         "status": get_channel_status(port),
         "properties": get_channel_properties(port),
     }
@@ -91,8 +92,8 @@ def create_hub_peer_representation(spoke):
     Args:
         spoke: The spoke port that will be represented
     """
-    pubkey = get_binding_profile_attribute(spoke, "public_key")
-    endpoint = get_binding_profile_attribute(spoke, "endpoint")
+    pubkey = get_spoke_channel_public_key(spoke)
+    endpoint = get_spoke_channel_endpoint(spoke)
     allowed_ips = ",".join([ip["ip_address"] for ip in get_fixed_ips(spoke)])
     return f"{pubkey}|{endpoint}|{allowed_ips}"
 
@@ -138,6 +139,14 @@ def get_channel_device_owner(port):
 get_spoke_channel_public_key = partial(get_binding_profile_attribute, attr="public_key")
 
 
+def get_spoke_channel_endpoint(port):
+    """Fetches the endpoint, if it exists. Else, returns an empty string"""
+    if "endpoint" in get_channel_properties(port):
+        return get_binding_profile_attribute(port, "endpoint")
+    else:
+        return ""
+
+
 def get_channel_uuid(port):
     return port["id"]
 
@@ -181,7 +190,7 @@ def get_channel_peers_spokes(spokes, hubs):
         return {}
 
     # Maps spoke public keys to hubs which have a peer with a given spoke public key
-    hubs_by_peer_representation = {}
+    hubs_by_peer_representation = defaultdict(list)
 
     # We determine a hub to be a peer if it has an entry with ``port``'s public key
     # in its own list of peers
@@ -198,7 +207,6 @@ def get_channel_peers_spokes(spokes, hubs):
                     f"Hub channel {get_channel_uuid(hub)} "
                     f"has invalid peer entry: {peer}"
                 )
-            hubs_by_peer_representation.setdefault(peer, [])
             hubs_by_peer_representation[peer].append(hub)
 
     return {
@@ -210,6 +218,4 @@ def get_channel_peers_spokes(spokes, hubs):
 
 
 def filter_ports_by_device_owner(filter_regex, port_list):
-    return list(
-        filter(lambda p: filter_regex.match(get_channel_device_owner(p)), port_list)
-    )
+    return [p for p in port_list if filter_regex.match(get_channel_device_owner(p))]

@@ -1,5 +1,4 @@
-from flask import Blueprint
-
+from tunelo.api.hooks import channel_endpoint_blueprint
 from tunelo.api.hooks import get_neutron_client
 from tunelo.api.hooks import route
 from tunelo.api.schema import hub_device_owner_pattern
@@ -9,10 +8,8 @@ from tunelo.api.utils import filter_ports_by_device_owner
 from tunelo.api.utils import get_channel_peers_spokes
 from tunelo.api.utils import get_channel_uuid
 
-bp = Blueprint("ListChannels", __name__)
 
-
-@route("/ListChannels", bp)
+@route("/channels", blueprint=channel_endpoint_blueprint, methods=["GET"])
 def list_channels():
     """Implements API function ListChannels
 

@@ -55,21 +55,9 @@ def create_app(test_config=None):
 
     app.register_blueprint(root.bp)
 
-    from .api import list_channels
+    from .api.hooks import channel_endpoint_blueprint
 
-    app.register_blueprint(list_channels.bp)
-
-    from .api import get_channel
-
-    app.register_blueprint(get_channel.bp)
-
-    from .api import create_channel
-
-    app.register_blueprint(create_channel.bp)
-
-    from .api import destroy_channel
-
-    app.register_blueprint(destroy_channel.bp)
+    app.register_blueprint(channel_endpoint_blueprint)
 
     app.logger.info("Registered apps")
 

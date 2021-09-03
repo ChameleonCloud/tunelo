@@ -1,7 +1,7 @@
 import traceback
 from functools import wraps
-from typing import TYPE_CHECKING
 
+from flask import Blueprint
 from flask import request
 from keystoneauth1 import session as ks_session
 from keystonemiddleware.auth_token import AuthProtocol
@@ -18,13 +18,11 @@ from tunelo.common import exception
 from tunelo.common import keystone
 from tunelo.conf import CONF
 
-if TYPE_CHECKING:
-    from flask import Blueprint
-
-
 LOG = log.getLogger(__name__)
 
 _NEUTRON_CLIENT = None
+
+channel_endpoint_blueprint = Blueprint("channels", __name__)
 
 
 class AuthTokenFlaskMiddleware(object):
