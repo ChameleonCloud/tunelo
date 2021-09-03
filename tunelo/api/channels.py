@@ -1,23 +1,28 @@
 import random
-from ipaddress import IPv4Address
-from ipaddress import IPv4Network
-from ipaddress import ip_address
-from ipaddress import ip_network
+from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
+from typing import List, Tuple
 
+from flask import Blueprint
 from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
+from neutronclient.common.exceptions import PortNotFoundClient
 
 from tunelo.api import schema
-from tunelo.api.hooks import channel_endpoint_blueprint
-from tunelo.api.hooks import get_neutron_client
-from tunelo.api.hooks import route
-from tunelo.api.schema import hub_device_owner_pattern
-from tunelo.api.utils import create_channel_representation
-from tunelo.api.utils import filter_ports_by_device_owner
-from tunelo.common.exception import Conflict
-from tunelo.common.exception import Invalid
-from tunelo.common.exception import InvalidParameterValue
-from tunelo.common.exception import NotFound
+from tunelo.api.hooks import (get_neutron_client,
+                              route)
+from tunelo.api.schema import (hub_device_owner_pattern,
+                               spoke_device_owner_pattern)
+from tunelo.api.utils import (create_channel_representation,
+                              filter_ports_by_device_owner,
+                              get_binding_profile_attribute,
+                              get_channel_device_owner,
+                              get_channel_peers_spokes, get_channel_project_id,
+                              get_channel_properties, get_channel_type,
+                              get_channel_uuid)
+from tunelo.common.exception import (Conflict, Invalid, InvalidParameterValue,
+                                     MalformedChannel, NotFound)
+
+bp = Blueprint("channels", __name__)
 
 KEY_ID = "id"
 KEY_NAME = "name"
@@ -41,9 +46,81 @@ KEY_BINDING_PROFILE = "binding:profile"
 neutron = get_neutron_client()
 
 
+@route("/channels", blueprint=bp, methods=["GET"])
+def list_channels():
+    """Implements API function ListChannels
+
+    All Neutron ports are pulled down and then channel spokes and hubs are derived
+    locally. Peer hubs for each spoke are mapped, and then a list of
+    channel representations is returned for all of the spokes
+    """
+    neutron = get_neutron_client()
+    ports = neutron.list_ports()
+    spokes = filter_ports_by_device_owner(spoke_device_owner_pattern, ports['ports'])
+    hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports['ports'])
+
+    spoke_peers = get_channel_peers_spokes(spokes, hubs)
+
+    return {
+        "channels": [
+            create_channel_representation(spoke, spoke_peers[get_channel_uuid(spoke)])
+            for spoke in spokes
+        ]
+    }
+
+
+
+@route("/channels/<uuid>", blueprint=bp, methods=["GET"])
+@schema.validate(uuid=schema.uuid)
+def get_channel(uuid):
+    """Gets a channel by UUID
+
+    Returns a channel representation for a spoke port
+
+    Args:
+        uuid:
+            The UUID of the channel must be equivalent to the ``id`` field of
+            a spoke port.
+    """
+    spoke, peers = get_channel_by_uuid(uuid)
+
+    return create_channel_representation(spoke, peers.get(uuid, []))
+
+
+def get_channel_by_uuid(uuid) -> Tuple[dict, List[dict]]:
+    """Gets a channel (spoke) and its peers (hubs) from a UUID
+
+    Args:
+        uuid: The UUID of a spoke port
+
+    Returns:
+        A tuple containing a spoke port dict and a list of peer hub port dicts
+    """
+    neutron = get_neutron_client()
+
+    try:
+        spoke = neutron.show_port(uuid)["port"]
+    except PortNotFoundClient:
+        raise NotFound(f"Channel {uuid} not found.")
+
+    # GetChannel is only allowed to retrieve spoke ports
+    if not spoke_device_owner_pattern.match(get_channel_device_owner(spoke)):
+        raise NotFound(f"Channel {uuid} not found.")
+
+    # Retrieve potential peers by looking for hubs on the same project as the spoke
+    channel_type = get_channel_type(spoke)
+    hub_owner = f"channel:{channel_type}:hub"
+    project_id = get_channel_project_id(spoke)
+    hubs = neutron.list_ports(device_owner=hub_owner, project_id=project_id)["ports"]
+    # Confirm that a hub is our peer by matching it to our public key
+    peers = get_channel_peers_spokes([spoke], hubs)
+
+    return spoke, peers
+
+
 @route(
     "/channels",
-    blueprint=channel_endpoint_blueprint,
+    blueprint=bp,
     json_body="channel_definition",
     methods=["POST"],
 )
@@ -91,6 +168,71 @@ def create_channel(channel_definition=None):
     # in the hub's list of peers
     # TODO shove spoke as new peer into new hub to avoid additional network round-trip
     return create_channel_representation(spoke, [hub])
+
+
+@route("/channels/<uuid>", blueprint=bp, methods=["DELETE"])
+def destroy_channel(uuid):
+    """Destroys a channel by UUID
+
+    Deletes a spoke port.
+    Deletes the hub if this action would cause the hub to have zero peers
+
+    Args:
+        uuid: the UUID of the channel must be equivalent to the ``id`` field
+        of a spoke port.
+    """
+    spoke, peers = get_channel_by_uuid(uuid)
+    neutron = get_neutron_client()
+
+    try:
+        neutron.delete_port(uuid)
+    except PortNotFoundClient:
+        raise NotFound(f"Channel {uuid} not found.")
+
+    # After deleting the spoke, we have to remove the spoke from its peer hub(s)
+    for hub in peers:
+        hub_peers = get_binding_profile_attribute(hub, "peers")
+        hub_id = get_channel_uuid(hub)
+        # If the hub has no peers left, it should be deleted
+        if not hub_peers:
+            neutron.delete_port(hub_id)
+
+
+@route(
+    "/channels/<uuid>",
+    blueprint=bp,
+    json_body="patch",
+    methods=["PATCH", "PUT"],
+)
+@schema.validate(uuid=schema.uuid, patch=schema.UPDATE_CHANNEL_SCHEMA)
+def update_channel(uuid, patch=None):
+    """ """
+    spoke, peers = get_channel_by_uuid(uuid)
+
+    channel_type = get_channel_type(spoke)
+    if channel_type not in schema.VALID_CHANNEL_TYPES:
+        raise MalformedChannel(
+            f"Channel {uuid} has unknown channel type {channel_type}."
+        )
+
+    # Because properties are nested, and we don't want to fully overwrite,
+    # we update the fields manually rather than using dict.update() on the whole port
+    update_dict = {}
+    name = patch.get("name")
+    properties = patch.get("properties")
+    if properties:
+        channel_properties = get_channel_properties(spoke)
+        channel_properties.update(properties)
+        update_dict["binding:profile"] = channel_properties
+    if name:
+        update_dict["name"] = name
+
+    neutron = get_neutron_client()
+    neutron.update_port(uuid, body={"port": update_dict})
+
+    spoke, peers = get_channel_by_uuid(uuid)
+    return create_channel_representation(spoke, peers[uuid])
+
 
 
 def resolve_subnet(subnet, channel_address, project_id):
