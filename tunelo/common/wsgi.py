@@ -22,8 +22,6 @@ class WSGIService(service.ServiceBase):
         """
         self.name = name
         self.app = create_app()
-        for thing in CONF.neutron:
-            print(f"{thing}: {CONF.neutron[thing]}")
         self.workers = (
             CONF.api.api_workers
             # NOTE(dtantsur): each worker takes a substantial amount of memory,

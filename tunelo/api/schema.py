@@ -17,6 +17,10 @@ device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):(spoke|hub)")
 valid_hub_peer_pattern = re.compile(
     r"(?P<public_key>.+)\|(?P<endpoint>.*)\|(?P<allowed_ips>.+)"
 )
+# This is not an accurate CIDR pattern, but in conjunction with being validated by
+# JSON-Schema's IPv{4,6} definition, this should be accurate enough.
+rough_cidr_pattern = re.compile(r".+/[0-9]+")
+
 
 # Some JSON schema helpers
 STRING = {"type": "string"}
@@ -32,14 +36,12 @@ PUBLIC_KEY = {
 }
 UUID = {
     "type": "string",
+    # TODO until version >= 4 of jsonschema is released, uuid format does NO validation
     "format": "uuid",
 }
-SUBNET = {
-    "anyOf": [
-        UUID,
-        IP_ADDRESS,  # TODO ensure CIDR
-    ],
-}
+# Presently, JSON-Schema does not validate CIDR types, so this has to be validated
+# manually. A subnet should be validated as CIDR | UUID.
+SUBNET = STRING
 
 
 def uuid(name, value) -> "Optional[str]":
@@ -63,12 +65,17 @@ def uuid(name, value) -> "Optional[str]":
 
 
 def _validate_schema(name, value, schema_dict):
-    if value is None:
-        return
+    if not value:
+        title = schema_dict.get("title")
+        if title in ("CreateChannel", "UpdateChannel"):
+            raise Invalid(f"No channel information provided for {title}.")
+        else:
+            return
     try:
         jsonschema.validate(
             value,
             schema_dict,
+            # TODO jsonschema version >= 4: Use a newer draft version
             cls=jsonschema.Draft7Validator,
             format_checker=jsonschema.draft7_format_checker,
         )
@@ -172,31 +179,42 @@ VALID_CHANNEL_TYPES = {"wireguard"}
 
 
 # TODO ensure proper error messages
-CREATE_CHANNEL_SCHEMA = schema(  # TODO document
+CREATE_CHANNEL_SCHEMA = schema(
     {
+        "title": "CreateChannel",
         "type": "object",
         "properties": {
+            # The name of the channel (optional)
             "name": STRING,
+            # The project ID for the channel
             "project_id": UUID,
+            # The subnet on which the channel will operate (UUID or CIDR) (optional)
             "subnet": SUBNET,
+            # Local address on subnet where the channel will be located (optional)
             "channel_address": IP_ADDRESS,
+            # Channel type, must be a string from the set of VALID_CHANNEL_TYPES
             "channel_type": STRING,
+            # Channel properties, which must be appropriate according to channel_type
             "properties": {
                 "type": "object",
                 "properties": {
+                    # The endpoint on which the spoke port will listen (optional)
                     "endpoint": IP_ADDRESS,
+                    # The public key for the spoke port
                     "public_key": PUBLIC_KEY,
                 },
                 "required": ["public_key"],
             },
         },
         "required": ["project_id", "channel_type", "properties"],
+        "additionalProperties": False,
     }
 )
 
 UPDATE_CHANNEL_SCHEMA = schema(
     {
         "type": "object",
+        "title": "UpdateChannel",
         "properties": {
             "name": STRING,
             "properties": {
@@ -204,5 +222,6 @@ UPDATE_CHANNEL_SCHEMA = schema(
                 "properties": {"endpoint": IP_ADDRESS, "public_key": PUBLIC_KEY},
             },
         },
+        "additionalProperties": False,
     }
 )

@@ -43,13 +43,13 @@ def create_channel_representation(port, peers=None):
     return {
         "uuid": get_channel_uuid(port),
         "channel_type": get_channel_type(port),
-        "peers": [create_hub_peer_representation(peer) for peer in peers],
+        "peers": [create_spoke_peer_representation(peer) for peer in peers],
         "status": get_channel_status(port),
         "properties": get_channel_properties(port),
     }
 
 
-def create_peer_representation(port):
+def create_spoke_peer_representation(port):
     """Creates a simplified channel representation of a port for use in the ``'peers'``
     field of the channel representation. This is a subset of a channel description
     which provides a simplified view into a peer channel.

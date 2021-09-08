@@ -8,19 +8,31 @@ from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
 
 from tunelo.api import schema
-from tunelo.api.hooks import (get_neutron_client,
-                              route)
-from tunelo.api.schema import (hub_device_owner_pattern,
-                               spoke_device_owner_pattern)
-from tunelo.api.utils import (create_channel_representation,
-                              filter_ports_by_device_owner,
-                              get_binding_profile_attribute,
-                              get_channel_device_owner,
-                              get_channel_peers_spokes, get_channel_project_id,
-                              get_channel_properties, get_channel_type,
-                              get_channel_uuid)
-from tunelo.common.exception import (Conflict, Invalid, InvalidParameterValue,
-                                     MalformedChannel, NotFound)
+from tunelo.api.hooks import get_neutron_client, route
+from tunelo.api.schema import (
+    hub_device_owner_pattern,
+    rough_cidr_pattern,
+    spoke_device_owner_pattern,
+)
+from tunelo.api.utils import (
+    create_channel_representation,
+    filter_ports_by_device_owner,
+    get_binding_profile_attribute,
+    get_channel_device_owner,
+    get_channel_peers_spokes,
+    get_channel_project_id,
+    get_channel_properties,
+    get_channel_type,
+    get_channel_uuid,
+)
+from tunelo.api.utils import create_hub_peer_representation
+from tunelo.common.exception import (
+    Conflict,
+    Invalid,
+    InvalidParameterValue,
+    MalformedChannel,
+    NotFound,
+)
 
 bp = Blueprint("channels", __name__)
 
@@ -46,6 +58,23 @@ KEY_BINDING_PROFILE = "binding:profile"
 neutron = get_neutron_client()
 
 
+def _is_uuid(val):
+    try:
+        is_uuid = schema.uuid("", val) is not None
+    except InvalidParameterValue:
+        is_uuid = False
+    return is_uuid
+
+def _is_cidr(val):
+    try:
+        ip_network(val)
+        # ip_network accepts single IP addresses without a length suffix
+        # so, we need to validate the existence of the length suffix as well.
+        return rough_cidr_pattern.match(val) is not None
+    except ValueError:
+        return False
+
+
 @route("/channels", blueprint=bp, methods=["GET"])
 def list_channels():
     """Implements API function ListChannels
@@ -54,10 +83,9 @@ def list_channels():
     locally. Peer hubs for each spoke are mapped, and then a list of
     channel representations is returned for all of the spokes
     """
-    neutron = get_neutron_client()
     ports = neutron.list_ports()
-    spokes = filter_ports_by_device_owner(spoke_device_owner_pattern, ports['ports'])
-    hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports['ports'])
+    spokes = filter_ports_by_device_owner(spoke_device_owner_pattern, ports["ports"])
+    hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports["ports"])
 
     spoke_peers = get_channel_peers_spokes(spokes, hubs)
 
@@ -67,7 +95,6 @@ def list_channels():
             for spoke in spokes
         ]
     }
-
 
 
 @route("/channels/<uuid>", blueprint=bp, methods=["GET"])
@@ -96,8 +123,6 @@ def get_channel_by_uuid(uuid) -> Tuple[dict, List[dict]]:
     Returns:
         A tuple containing a spoke port dict and a list of peer hub port dicts
     """
-    neutron = get_neutron_client()
-
     try:
         spoke = neutron.show_port(uuid)["port"]
     except PortNotFoundClient:
@@ -131,12 +156,28 @@ def create_channel(channel_definition=None):
     Follows a number of branching paths to create a new channel. The high level overview
     is as follows:
 
-        1. Validate the format of a user-provided channel description using the schema
-        helpers
-        2.
-
+        1. Resolve the subnet
+            a. If the subnet is a UUID, fetch it from OpenStack
+            b. If the subnet is in CIDR notation:
+                I. Attempt to find an existing subnet under the project that uses
+                   the provided subnet address space
+                II. If there is not existing subnet that fits, create a new one using
+                    the provided CIDR
+            c. If the subnet is not provided:
+                I. Attempt to find an existing subnet under the project that will fit
+                   the provided channel address
+                II. If the channel address is not provided, provision a new subnet
+                    from any fitting subnet pool.
+        2. Ensure that, if a channel address is provided, it fits into the resolved
+        subnet.
+        3. Resolve an appropriate hub port for the channel
+            a. Find a port with channel owner ``channel:<type>:hub`` that uses the same
+               subnet that was resolved in step 1.
+            b. If no such port exists, we create one.
+        4. Create a spoke port using the provided channel information.
+        5. Return a channel representation of the new spoke port
     """
-    # Schema is validated, so we are free to make unchecked assumptions
+    # Since schema is validated ahead of time, we are free to make unchecked assumptions
     # about the format of the data in the payload
     channel_type = channel_definition[KEY_CHANNEL_TYPE]
     if channel_type not in schema.VALID_CHANNEL_TYPES:
@@ -164,13 +205,19 @@ def create_channel(channel_definition=None):
         project_id, name, subnet_meta, channel_type, channel_address, properties
     )
 
-    # TODO the current channel representation returned does not include the new spoke
-    # in the hub's list of peers
-    # TODO shove spoke as new peer into new hub to avoid additional network round-trip
+    # The current channel representation returned does not include the new spoke
+    # in the hub's list of peers, so we shove the new spoke spoke as s new peer
+    # into new hub to avoid an additional network round-trip.
+
+    hub_peers = hub.get("peers", [])
+    hub_peers.append(create_hub_peer_representation(spoke))
+    hub["peers"] = hub_peers
+
     return create_channel_representation(spoke, [hub])
 
 
 @route("/channels/<uuid>", blueprint=bp, methods=["DELETE"])
+@schema.validate(uuid=schema.uuid)
 def destroy_channel(uuid):
     """Destroys a channel by UUID
 
@@ -182,7 +229,6 @@ def destroy_channel(uuid):
         of a spoke port.
     """
     spoke, peers = get_channel_by_uuid(uuid)
-    neutron = get_neutron_client()
 
     try:
         neutron.delete_port(uuid)
@@ -206,7 +252,7 @@ def destroy_channel(uuid):
 )
 @schema.validate(uuid=schema.uuid, patch=schema.UPDATE_CHANNEL_SCHEMA)
 def update_channel(uuid, patch=None):
-    """ """
+    """Implements the UpdateChannel API function"""
     spoke, peers = get_channel_by_uuid(uuid)
 
     channel_type = get_channel_type(spoke)
@@ -227,21 +273,16 @@ def update_channel(uuid, patch=None):
     if name:
         update_dict["name"] = name
 
-    neutron = get_neutron_client()
     neutron.update_port(uuid, body={"port": update_dict})
 
     spoke, peers = get_channel_by_uuid(uuid)
     return create_channel_representation(spoke, peers[uuid])
 
 
-
 def resolve_subnet(subnet, channel_address, project_id):
     """ """
     # First, determine if the provided subnet is a UUID or an IP address
-    try:
-        subnet_is_uuid = schema.uuid("", subnet) is not None
-    except InvalidParameterValue:
-        subnet_is_uuid = False
+    subnet_is_uuid = _is_uuid(subnet)
     if subnet_is_uuid:
         # If the subnet is a UUID, we fetch that subnet and make sure it's valid
         try:
@@ -259,24 +300,33 @@ def resolve_subnet(subnet, channel_address, project_id):
         if channel_address:
             # If channel address is provided, we narrow the search further to a subnet
             # which can hold the channel address
-            channel_ip = ip_address(channel_address)
+            try:
+                channel_ip = ip_address(channel_address)
+            except (ValueError, TypeError):
+                raise InvalidParameterValue(
+                    f"Channel address {channel_address} is not a valid IP address."
+                )
             matching_subnets = [
                 sub
                 for sub in matching_subnets["subnets"]
                 if channel_ip in ip_network(sub[KEY_CIDR])
             ]
     else:
+        # JSON-Schema has no method for validating CIDR notation, so we do it manually
+        if not _is_cidr(subnet):
+            raise InvalidParameterValue(f"Subnet {subnet} is not valid CIDR notation.")
+
         # If the subnet is in CIDR, find a matching subnet for the project
         matching_subnets = neutron.list_subnets(cidr=subnet, project_id=project_id)[
             "subnets"
         ]
 
-    if len(matching_subnets) == 0:
+    if not matching_subnets:
         # If no subnet matching our criteria exists, we have to create a new one
         # on a valid network
         subnet_meta = new_subnet(project_id, subnet, channel_address)
     else:
-        subnet_meta = matching_subnets[0]
+        subnet_meta = random.choice(matching_subnets)
 
     return subnet_meta
 
@@ -382,7 +432,7 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
 def create_spoke(
     project_id, name, subnet_meta, channel_type, channel_address, properties
 ):
-    """ """
+    """Creates a new spoke port using the provided channel information"""
     subnet_id = subnet_meta[KEY_ID]
     # If there are no hubs to attach to, we have to create a new one
     if not channel_address:
