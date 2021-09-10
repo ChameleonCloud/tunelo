@@ -17,10 +17,6 @@ device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):(spoke|hub)")
 valid_hub_peer_pattern = re.compile(
     r"(?P<public_key>.+)\|(?P<endpoint>.*)\|(?P<allowed_ips>.+)"
 )
-# This is not an accurate CIDR pattern, but in conjunction with being validated by
-# JSON-Schema's IPv{4,6} definition, this should be accurate enough.
-rough_cidr_pattern = re.compile(r".+/[0-9]+")
-
 
 # Some JSON schema helpers
 STRING = {"type": "string"}
@@ -178,7 +174,6 @@ def validate(*args, **kwargs):
 VALID_CHANNEL_TYPES = {"wireguard"}
 
 
-# TODO ensure proper error messages
 CREATE_CHANNEL_SCHEMA = schema(
     {
         "title": "CreateChannel",

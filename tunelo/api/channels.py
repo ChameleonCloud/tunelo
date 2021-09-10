@@ -6,12 +6,12 @@ from flask import Blueprint
 from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
+from oslo_utils import netutils
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, route
 from tunelo.api.schema import (
     hub_device_owner_pattern,
-    rough_cidr_pattern,
     spoke_device_owner_pattern,
 )
 from tunelo.api.utils import (
@@ -65,14 +65,9 @@ def _is_uuid(val):
         is_uuid = False
     return is_uuid
 
+
 def _is_cidr(val):
-    try:
-        ip_network(val)
-        # ip_network accepts single IP addresses without a length suffix
-        # so, we need to validate the existence of the length suffix as well.
-        return rough_cidr_pattern.match(val) is not None
-    except ValueError:
-        return False
+    return netutils.is_valid_cidr(val) or netutils.is_valid_ipv6_cidr(val)
 
 
 @route("/channels", blueprint=bp, methods=["GET"])
