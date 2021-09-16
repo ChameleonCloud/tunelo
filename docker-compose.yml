@@ -1,0 +1,15 @@
+---
+version: "3"
+
+services:
+  tunelo:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ./tunelo:/work/tunelo:ro
+    environment:
+      FLASK_ENV: development
+      GUNICORN_ARGS: --reload
+    ports:
+      - "127.0.0.1:8001:8001"
