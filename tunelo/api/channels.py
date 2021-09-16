@@ -91,7 +91,6 @@ def list_channels():
         ]
     }
 
-
 @route("/channels/<uuid>", blueprint=bp, methods=["GET"])
 @schema.validate(uuid=schema.uuid)
 def get_channel(uuid):
@@ -272,7 +271,6 @@ def update_channel(uuid, patch=None):
 
     spoke, peers = get_channel_by_uuid(uuid)
     return create_channel_representation(spoke, peers[uuid])
-
 
 def resolve_subnet(subnet, channel_address, project_id):
     """ """
