@@ -279,8 +279,7 @@ def resolve_subnet(subnet, channel_address, project_id):
     if subnet_is_uuid:
         # If the subnet is a UUID, we fetch that subnet and make sure it's valid
         try:
-            matching_subnets = neutron.show_subnet(subnet)["subnets"]
-            # Change key 'subnet' to 'subnets' to be consistent with other code paths
+            matching_subnets = [neutron.show_subnet(subnet)["subnet"]]
             if matching_subnets[0][KEY_PROJECT_ID] != project_id:
                 raise InvalidParameterValue(
                     f"Subnet {subnet} is not associated with project {project_id}"
@@ -403,8 +402,8 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     ]
 
     if len(hubs_in_subnet) > 0:
-        # If there are any existing hubs in the subnet, latch onto the first one
-        return hubs_in_subnet[0]
+        # If there are any existing hubs in the subnet, latch onto a random one
+        return random.choice(hubs_in_subnet)
 
     hub_creation_request = {
         KEY_PROJECT_ID: project_id,
