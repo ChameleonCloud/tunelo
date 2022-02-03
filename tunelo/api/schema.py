@@ -35,8 +35,8 @@ UUID = {
     # TODO until version >= 4 of jsonschema is released, uuid format does NO validation
     "format": "uuid",
 }
-# Presently, JSON-Schema does not validate CIDR types, so this has to be validated
-# manually. A subnet should be validated as CIDR | UUID.
+# The subnet can be a name, UUID, or CIDR notation; its value should be parsed
+# accordingly when being interpreted.
 SUBNET = STRING
 
 
