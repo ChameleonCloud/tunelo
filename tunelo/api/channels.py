@@ -33,6 +33,7 @@ from tunelo.common.exception import (
     MalformedChannel,
     NotFound,
 )
+from tunelo.conf import CONF
 
 bp = Blueprint("channels", __name__)
 
@@ -90,6 +91,7 @@ def list_channels():
             for spoke in spokes
         ]
     }
+
 
 @route("/channels/<uuid>", blueprint=bp, methods=["GET"])
 @schema.validate(uuid=schema.uuid)
@@ -272,51 +274,52 @@ def update_channel(uuid, patch=None):
     spoke, peers = get_channel_by_uuid(uuid)
     return create_channel_representation(spoke, peers[uuid])
 
+
 def resolve_subnet(subnet, channel_address, project_id):
     """ """
-    # First, determine if the provided subnet is a UUID or an IP address
-    subnet_is_uuid = _is_uuid(subnet)
-    if subnet_is_uuid:
-        # If the subnet is a UUID, we fetch that subnet and make sure it's valid
+
+    def _resolve_subnet_by_name_or_id(subnet_ref):
         try:
-            matching_subnets = [neutron.show_subnet(subnet)["subnet"]]
+            matching_subnets = [neutron.show_subnet(subnet_ref)["subnet"]]
             if matching_subnets[0][KEY_PROJECT_ID] != project_id:
                 raise InvalidParameterValue(
-                    f"Subnet {subnet} is not associated with project {project_id}"
+                    f"Subnet {subnet_ref} is not associated with project {project_id}"
                 )
+            return matching_subnets
         except NeutronNotFound:
-            raise NotFound(f"Subnet {subnet} not found.")
-    elif not subnet:
+            raise NotFound(f"Subnet {subnet_ref} not found.")
+
+    if not subnet and channel_address:
         # If a subnet is not provided, we try to find one for the channel address
         matching_subnets = neutron.list_subnets(project_id=project_id)["subnets"]
-        if channel_address:
-            # If channel address is provided, we narrow the search further to a subnet
-            # which can hold the channel address
-            try:
-                channel_ip = ip_address(channel_address)
-            except (ValueError, TypeError):
-                raise InvalidParameterValue(
-                    f"Channel address {channel_address} is not a valid IP address."
-                )
-            matching_subnets = [
-                sub
-                for sub in matching_subnets["subnets"]
-                if channel_ip in ip_network(sub[KEY_CIDR])
-            ]
-    else:
-        # JSON-Schema has no method for validating CIDR notation, so we do it manually
-        if not _is_cidr(subnet):
-            raise InvalidParameterValue(f"Subnet {subnet} is not valid CIDR notation.")
-
-        # If the subnet is in CIDR, find a matching subnet for the project
-        matching_subnets = neutron.list_subnets(cidr=subnet, project_id=project_id)[
-            "subnets"
+        try:
+            channel_ip = ip_address(channel_address)
+        except (ValueError, TypeError):
+            raise InvalidParameterValue(
+                f"Channel address {channel_address} is not a valid IP address."
+            )
+        matching_subnets = [
+            sub
+            for sub in matching_subnets["subnets"]
+            if channel_ip in ip_network(sub[KEY_CIDR])
         ]
+    elif subnet:
+        if _is_cidr(subnet):
+            matching_subnets = neutron.list_subnets(cidr=subnet, project_id=project_id)[
+                "subnets"
+            ]
+        else:
+            matching_subnets = _resolve_subnet_by_name_or_id(subnet)
+    else:
+        matching_subnets = []
 
     if not matching_subnets:
-        # If no subnet matching our criteria exists, we have to create a new one
-        # on a valid network
-        subnet_meta = new_subnet(project_id, subnet, channel_address)
+        if CONF.default_subnet:
+            subnet_meta = _resolve_subnet_by_name_or_id(subnet)[0]
+        else:
+            # If no subnet matching our criteria exists, we have to create a new one
+            # on a valid network
+            subnet_meta = new_subnet(project_id, subnet, channel_address)
     else:
         subnet_meta = random.choice(matching_subnets)
 

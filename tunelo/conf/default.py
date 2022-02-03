@@ -7,6 +7,16 @@ from oslo_config import cfg
 
 GROUP = "DEFAULT"
 
+default_opts = [
+    cfg.StrOpt(
+        "default_subnet",
+        help=(
+            "A default subnet (name or UUID) to use in case no subnet is specified "
+            "by the end-user. Channels will be allocated on this subnet."
+        ),
+    )
+]
+
 path_opts = [
     cfg.StrOpt(
         "pybasedir",
@@ -84,4 +94,4 @@ utils_opts = [
     ),
 ]
 
-opts = chain(*[path_opts, service_opts, exc_log_opts, utils_opts])
+opts = chain(*[default_opts, path_opts, service_opts, exc_log_opts, utils_opts])
