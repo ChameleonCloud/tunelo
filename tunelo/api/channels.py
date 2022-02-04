@@ -186,7 +186,7 @@ def create_channel(channel_definition=None):
     subnet = channel_definition.get(KEY_SUBNET)
     channel_address = channel_definition.get(KEY_CHANNEL_ADDRESS)
 
-    subnet_meta = resolve_subnet(subnet, channel_address, project_id)
+    subnet_meta = get_or_create_subnet(subnet, channel_address, project_id)
     subnet_cidr = subnet_meta[KEY_CIDR]
     if (subnet and channel_address) and (
         ip_address(channel_address) not in ip_network(subnet_cidr)
@@ -275,10 +275,13 @@ def update_channel(uuid, patch=None):
     return create_channel_representation(spoke, peers[uuid])
 
 
-def resolve_subnet(subnet, channel_address, project_id):
+def get_or_create_subnet(subnet, channel_address, project_id):
     """ """
 
-    def _resolve_subnet_by_name_or_id(subnet_ref):
+    def _resolve_subnets(subnet_ref):
+        if _is_cidr(subnet):
+            return neutron.list_subnets(cidr=subnet, project_id=project_id)["subnets"]
+
         try:
             matching_subnets = [neutron.show_subnet(subnet_ref)["subnet"]]
             if matching_subnets[0][KEY_PROJECT_ID] != project_id:
@@ -304,18 +307,13 @@ def resolve_subnet(subnet, channel_address, project_id):
             if channel_ip in ip_network(sub[KEY_CIDR])
         ]
     elif subnet:
-        if _is_cidr(subnet):
-            matching_subnets = neutron.list_subnets(cidr=subnet, project_id=project_id)[
-                "subnets"
-            ]
-        else:
-            matching_subnets = _resolve_subnet_by_name_or_id(subnet)
+        matching_subnets = _resolve_subnets(subnet)
     else:
         matching_subnets = []
 
     if not matching_subnets:
         if CONF.default_subnet:
-            subnet_meta = _resolve_subnet_by_name_or_id(subnet)[0]
+            subnet_meta = _resolve_subnets(CONF.default_subnet)[0]
         else:
             # If no subnet matching our criteria exists, we have to create a new one
             # on a valid network
