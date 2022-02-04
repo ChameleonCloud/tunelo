@@ -358,15 +358,14 @@ dotenv = ["python-dotenv"]
 
 [[package]]
 name = "futurist"
-version = "1.10.0"
+version = "2.4.0"
 description = "Useful additions to futures, from the future."
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.6"
 
 [package.dependencies]
 pbr = ">=2.0.0,<2.1.0 || >2.1.0"
-PrettyTable = ">=0.7.1,<0.8"
 six = ">=1.10.0"
 
 [[package]]
@@ -1605,7 +1604,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "72c4f0c070deefdf5cecb825bf0174fd14123e107f9f0a7672ef36216308f695"
+content-hash = "de822e5b276e9f35404cb267432218a84dfe0c808e19b284643d8996958d213f"
 
 [metadata.files]
 amqp = [
@@ -1792,8 +1791,8 @@ flask = [
     {file = "Flask-1.1.4.tar.gz", hash = "sha256:0fbeb6180d383a9186d0d6ed954e0042ad9f18e0e8de088b2b419d526927d196"},
 ]
 futurist = [
-    {file = "futurist-1.10.0-py2.py3-none-any.whl", hash = "sha256:7169d7729ca639071fa722f7c5fc2f4b77acbc2128a214ecef0784f70a63d2b3"},
-    {file = "futurist-1.10.0.tar.gz", hash = "sha256:139d223503d47275636285ae98e7b470085b2b3b6fb2fc9a0d04a76de4b3d30e"},
+    {file = "futurist-2.4.0-py3-none-any.whl", hash = "sha256:51f4e64b35930cdf9c99edcb48fe4988594ac7fafef0a27439a877f4ee334ebc"},
+    {file = "futurist-2.4.0.tar.gz", hash = "sha256:1c7452e2e8cc542c40c066c7d2be266a7029d9de391055613b4f069caa10a90b"},
 ]
 greenlet = [
     {file = "greenlet-1.1.2-cp27-cp27m-macosx_10_14_x86_64.whl", hash = "sha256:58df5c2a0e293bf665a51f8a100d3e9956febfbf1d9aaf8c0677cf70218910c6"},
