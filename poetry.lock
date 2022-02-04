@@ -539,7 +539,7 @@ test = ["PyYAML (>=3.12)", "bandit (>=1.1.0,<1.6.0)", "betamax (>=0.7.0)", "cove
 
 [[package]]
 name = "keystonemiddleware"
-version = "7.0.1"
+version = "9.3.0"
 description = "Middleware for OpenStack Identity"
 category = "main"
 optional = false
@@ -563,7 +563,7 @@ WebOb = ">=1.7.1"
 
 [package.extras]
 audit_notifications = ["oslo.messaging (>=5.29.0)"]
-test = ["hacking (>=0.10.0,<0.11)", "flake8-docstrings (==0.2.1.post1)", "coverage (>=4.0,!=4.4)", "cryptography (>=2.1)", "fixtures (>=3.0.0)", "mock (>=2.0.0)", "oslotest (>=3.2.0)", "requests-mock (>=1.2.0)", "stevedore (>=1.20.0)", "stestr (>=2.0.0)", "testresources (>=2.0.0)", "testtools (>=2.2.0)", "python-memcached (>=1.59)", "WebTest (>=2.0.27)", "oslo.messaging (>=5.29.0)", "bandit (>=1.1.0,!=1.6.0)"]
+test = ["WebTest (>=2.0.27)", "bandit (>=1.1.0,!=1.6.0)", "coverage (>=4.0,!=4.4)", "cryptography (>=3.0)", "fixtures (>=3.0.0)", "flake8-docstrings (==0.2.1.post1)", "hacking (>=3.0,<4.0.0)", "oslo.messaging (>=5.29.0)", "oslotest (>=3.2.0)", "python-memcached (>=1.59)", "requests-mock (>=1.2.0)", "stestr (>=2.0.0)", "stevedore (>=1.20.0)", "testresources (>=2.0.0)", "testtools (>=2.2.0)"]
 
 [[package]]
 name = "kombu"
@@ -1605,7 +1605,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "72c4f0c070deefdf5cecb825bf0174fd14123e107f9f0a7672ef36216308f695"
+content-hash = "40eb328fd78956759b346f3e9e24476bd3adfa3af74bfb544366db0e623ddf30"
 
 [metadata.files]
 amqp = [
@@ -1905,8 +1905,8 @@ keystoneauth1 = [
     {file = "keystoneauth1-4.4.0.tar.gz", hash = "sha256:34662a6be67ab29424aabe6f99a8d7eb6b88d293109a07e60fea123ebffb314f"},
 ]
 keystonemiddleware = [
-    {file = "keystonemiddleware-7.0.1-py2.py3-none-any.whl", hash = "sha256:a2b060fd2109a7ec16c34a96bf1498776a85eeb72280f6dd693f1bdbcd918d27"},
-    {file = "keystonemiddleware-7.0.1.tar.gz", hash = "sha256:50c134bc0a9a3b7ef3be4cc259f4742a7e43558dbc6c350beaad68b30ef32964"},
+    {file = "keystonemiddleware-9.3.0-py3-none-any.whl", hash = "sha256:eb43953b1d5494aace11b6f578915073fc00a160033706a1314b549411d0740e"},
+    {file = "keystonemiddleware-9.3.0.tar.gz", hash = "sha256:02b951ce96da6348a63216cf4e2e781ac3f15af5fa4023c12e53f8cb22e23583"},
 ]
 kombu = [
     {file = "kombu-5.1.0-py3-none-any.whl", hash = "sha256:e2dedd8a86c9077c350555153825a31e456a0dc20c15d5751f00137ec9c75f0a"},
