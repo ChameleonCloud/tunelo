@@ -6,7 +6,7 @@ from flask import Blueprint
 from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
-from oslo_utils import netutils
+from oslo_utils import netutils, uuidutils
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, route
@@ -56,16 +56,6 @@ KEY_PROPERTIES = "properties"
 KEY_DEVICE_OWNER = "device_owner"
 KEY_BINDING_PROFILE = "binding:profile"
 
-neutron = get_neutron_client()
-
-
-def _is_uuid(val):
-    try:
-        is_uuid = schema.uuid("", val) is not None
-    except InvalidParameterValue:
-        is_uuid = False
-    return is_uuid
-
 
 def _is_cidr(val):
     return netutils.is_valid_cidr(val) or netutils.is_valid_ipv6_cidr(val)
@@ -79,7 +69,7 @@ def list_channels():
     locally. Peer hubs for each spoke are mapped, and then a list of
     channel representations is returned for all of the spokes
     """
-    ports = neutron.list_ports()
+    ports = get_neutron_client().list_ports()
     spokes = filter_ports_by_device_owner(spoke_device_owner_pattern, ports["ports"])
     hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports["ports"])
 
@@ -119,6 +109,7 @@ def get_channel_by_uuid(uuid) -> Tuple[dict, List[dict]]:
     Returns:
         A tuple containing a spoke port dict and a list of peer hub port dicts
     """
+    neutron = get_neutron_client()
     try:
         spoke = neutron.show_port(uuid)["port"]
     except PortNotFoundClient:
@@ -225,6 +216,7 @@ def destroy_channel(uuid):
         of a spoke port.
     """
     spoke, peers = get_channel_by_uuid(uuid)
+    neutron = get_neutron_client()
 
     try:
         neutron.delete_port(uuid)
@@ -269,22 +261,28 @@ def update_channel(uuid, patch=None):
     if name:
         update_dict["name"] = name
 
-    neutron.update_port(uuid, body={"port": update_dict})
+    get_neutron_client().update_port(uuid, body={"port": update_dict})
 
     spoke, peers = get_channel_by_uuid(uuid)
     return create_channel_representation(spoke, peers[uuid])
 
 
 def get_or_create_subnet(subnet, channel_address, project_id):
-    """ """
+    neutron = get_neutron_client()
 
     def _resolve_subnets(subnet_ref):
         if _is_cidr(subnet):
             return neutron.list_subnets(cidr=subnet, project_id=project_id)["subnets"]
 
         try:
-            matching_subnets = [neutron.show_subnet(subnet_ref)["subnet"]]
-            if matching_subnets[0][KEY_PROJECT_ID] != project_id:
+            if uuidutils.is_uuid_like(subnet_ref):
+                matching_subnets = [neutron.show_subnet(subnet_ref)["subnet"]]
+            else:
+                matching_subnets = neutron.list_subnets(
+                    name=subnet_ref, project_id=project_id
+                )["subnets"]
+
+            if matching_subnets and matching_subnets[0][KEY_PROJECT_ID] != project_id:
                 raise InvalidParameterValue(
                     f"Subnet {subnet_ref} is not associated with project {project_id}"
                 )
@@ -328,6 +326,7 @@ def new_subnet(project_id, cidr, channel_address):
     """Creates a new subnet based on either a provided CIDR notation
     or by trying to fit a provided channel address
     """
+    neutron = get_neutron_client()
     networks = neutron.list_networks(project_id=project_id, is_default=True)["networks"]
     if len(networks) == 0:
         raise Invalid("Could not find valid network in project to create new subnet.")
@@ -382,7 +381,7 @@ def new_subnet(project_id, cidr, channel_address):
 
 
 def resolve_host(channel_type):
-    """ """
+    neutron = get_neutron_client()
     agents = neutron.list_agents(binary=f"neutron-{channel_type}-agent")
     if len(agents["agents"]) == 0:
         raise NotFound(f"Could not find any hosts running {channel_type} agent.")
@@ -393,6 +392,7 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     """
     TODO test channel creation for existing hub, non-existing hubs, and multiple hubs
     """
+    neutron = get_neutron_client()
     subnet_id = subnet_meta[KEY_ID]
     ports = neutron.list_ports(project_id=project_id)
     hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports["ports"])
@@ -445,7 +445,7 @@ def create_spoke(
         spoke_creation_request[KEY_NAME] = name
 
     try:
-        spoke = neutron.create_port({"port": spoke_creation_request})
+        spoke = get_neutron_client().create_port({"port": spoke_creation_request})
     except IpAddressAlreadyAllocatedClient as exc:
         raise Conflict(exc.message.split("\n")[0] + ".")
 
