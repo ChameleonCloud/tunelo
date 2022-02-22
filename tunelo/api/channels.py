@@ -186,8 +186,6 @@ def create_channel(channel_definition=None):
             f"channel_address {channel_address} does not fit in subnet {subnet_cidr}"
         )
 
-    hub = resolve_hub(subnet_meta, project_id, name, channel_type)
-
     spoke = create_spoke(
         project_id, name, subnet_meta, channel_type, channel_address, properties
     )
@@ -195,10 +193,9 @@ def create_channel(channel_definition=None):
     # The current channel representation returned does not include the new spoke
     # in the hub's list of peers, so we shove the new spoke spoke as s new peer
     # into new hub to avoid an additional network round-trip.
-
-    hub_peers = hub.get("peers", [])
+    hub = resolve_hub(subnet_meta, project_id, name, channel_type)
+    hub_peers = hub["binding:profile"].setdefault("peers", [])
     hub_peers.append(create_hub_peer_representation(spoke))
-    hub["peers"] = hub_peers
 
     return create_channel_representation(spoke, [hub])
 

@@ -92,19 +92,22 @@ def create_hub_peer_representation(spoke):
     Args:
         spoke: The spoke port that will be represented
     """
-    pubkey = get_spoke_channel_public_key(spoke)
-    endpoint = get_spoke_channel_endpoint(spoke)
-    allowed_ips = ",".join([ip["ip_address"] for ip in get_fixed_ips(spoke)])
+    spoke_props = get_channel_properties(spoke)
+    pubkey = spoke_props.get("public_key") or ""
+    endpoint = spoke_props.get("endpoint") or ""
+    allowed_ips = ",".join([ip["ip_address"] for ip in spoke["fixed_ips"]])
     return f"{pubkey}|{endpoint}|{allowed_ips}"
-
-
-def get_fixed_ips(spoke):
-    return spoke["fixed_ips"]
 
 
 def get_channel_properties(port):
     """Retreives a channel's binding:profile dict"""
-    return port["binding:profile"]
+    binding_profile = port["binding:profile"]
+    ip = next(iter([fip["ip_address"] for fip in port["fixed_ips"]]), None)
+    return {
+        "public_key": binding_profile.get("public_key"),
+        "endpoint": binding_profile.get("endpoint"),
+        "ip": ip,
+    }
 
 
 def get_channel_type(port):
@@ -136,23 +139,8 @@ def get_channel_device_owner(port):
     return port["device_owner"]
 
 
-get_spoke_channel_public_key = partial(get_binding_profile_attribute, attr="public_key")
-
-
-def get_spoke_channel_endpoint(port):
-    """Fetches the endpoint, if it exists. Else, returns an empty string"""
-    if "endpoint" in get_channel_properties(port):
-        return get_binding_profile_attribute(port, "endpoint")
-    else:
-        return ""
-
-
 def get_channel_uuid(port):
     return port["id"]
-
-
-def get_channel_endpoint(port):
-    return port["endpoint"]
 
 
 def get_channel_status(port):
