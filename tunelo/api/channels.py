@@ -17,7 +17,6 @@ from tunelo.api.schema import (
 from tunelo.api.utils import (
     create_channel_representation,
     filter_ports_by_device_owner,
-    get_binding_profile_attribute,
     get_channel_device_owner,
     get_channel_peers_spokes,
     get_channel_project_id,
@@ -222,7 +221,7 @@ def destroy_channel(uuid):
 
     # After deleting the spoke, we have to remove the spoke from its peer hub(s)
     for hub in peers:
-        hub_peers = get_binding_profile_attribute(hub, "peers")
+        hub_peers = hub["binding:profile"]["peers"]
         hub_id = get_channel_uuid(hub)
         # If the hub has no peers left, it should be deleted
         if not hub_peers:
