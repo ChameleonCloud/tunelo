@@ -69,21 +69,6 @@ def create_spoke_peer_representation(port):
     }
 
 
-def get_binding_profile_attribute(port, attr):
-    """Retrieves a value from a channel's ``binding:profile`` dict
-
-    Raises:
-        MalformedChannel: If the channel's ``binding:profile`` dict has no ``attr``
-    """
-    profile = get_channel_properties(port)
-    val = profile.get(attr)
-    if not val:
-        raise MalformedChannel(
-            f"Port {port['id']} missing required binding:profile attribute {attr}."
-        )
-    return val
-
-
 def create_hub_peer_representation(spoke):
     """Creates a peer representation in the form of pubkey|endpoint|allowed_ips.
     This is how peers are listed in the ``peers`` attribute of a hub port's
@@ -183,7 +168,7 @@ def get_channel_peers_spokes(spokes, hubs):
     # We determine a hub to be a peer if it has an entry with ``port``'s public key
     # in its own list of peers
     for hub in hubs:
-        peers = get_channel_properties(hub).get("peers")
+        peers = hub["binding:profile"].get("peers")
         if not peers:
             continue
         for peer in peers:
