@@ -99,7 +99,7 @@ def get_channel(uuid):
     return create_channel_representation(spoke, peers.get(uuid, []))
 
 
-def get_channel_by_uuid(uuid) -> Tuple[dict, List[dict]]:
+def get_channel_by_uuid(uuid) -> Tuple[dict, dict[str, List[dict]]]:
     """Gets a channel (spoke) and its peers (hubs) from a UUID
 
     Args:
@@ -219,7 +219,7 @@ def destroy_channel(uuid):
     except PortNotFoundClient:
         raise NotFound(f"Channel {uuid} not found.")
 
-    for peer in peers:
+    for peer in peers.values():
         peer_peers = peer["binding:profile"]["peers"]
         # If removing the last peer from our peer, our peer is now an orphan and can
         # also be cleaned up.
