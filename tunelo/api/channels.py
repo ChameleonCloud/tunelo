@@ -1,3 +1,4 @@
+import itertools
 import random
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 from typing import List, Tuple
@@ -10,12 +11,10 @@ from oslo_utils import netutils, uuidutils
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, route
-from tunelo.api.schema import (
-    hub_device_owner_pattern,
-    spoke_device_owner_pattern,
-)
+from tunelo.api.schema import hub_device_owner_pattern, spoke_device_owner_pattern
 from tunelo.api.utils import (
     create_channel_representation,
+    create_hub_peer_representation,
     filter_ports_by_device_owner,
     get_channel_device_owner,
     get_channel_peers_spokes,
@@ -24,7 +23,6 @@ from tunelo.api.utils import (
     get_channel_type,
     get_channel_uuid,
 )
-from tunelo.api.utils import create_hub_peer_representation
 from tunelo.common.exception import (
     Conflict,
     Invalid,
@@ -219,7 +217,7 @@ def destroy_channel(uuid):
     except PortNotFoundClient:
         raise NotFound(f"Channel {uuid} not found.")
 
-    for peer in peers.values():
+    for peer in itertools.chain(*peers.values()):
         peer_peers = peer["binding:profile"]["peers"]
         # If removing the last peer from our peer, our peer is now an orphan and can
         # also be cleaned up.
