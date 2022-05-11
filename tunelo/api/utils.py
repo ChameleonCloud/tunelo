@@ -3,6 +3,7 @@ from functools import partial
 
 from flask import make_response
 from oslo_log import log
+from tunelo.api.channels import KEY_BINDING_PROFILE
 
 from tunelo.api.schema import VALID_CHANNEL_TYPES
 from tunelo.api.schema import device_owner_pattern
@@ -157,37 +158,19 @@ def get_channel_peers_spokes(spokes, hubs):
     Returns:
         A dictionary, mapping spoke UUIDs to lists of hubs which have them as peers
     """
-    if not hubs:
-        return {get_channel_uuid(s): [] for s in spokes}
     if not spokes:
         return {}
 
-    # Maps spoke public keys to hubs which have a peer with a given spoke public key
-    hubs_by_peer_representation = defaultdict(list)
-
-    # We determine a hub to be a peer if it has an entry with ``port``'s public key
-    # in its own list of peers
-    for hub in hubs:
-        peers = hub["binding:profile"].get("peers")
-        if not peers:
-            continue
-        for peer in peers:
-            # Hub ports have peer entries which represent spokes.
-            # These entries look like "pubkey|endpoint|allowed_ips
-            valid_peer = valid_hub_peer_pattern.match(peer)
-            if not valid_peer:
-                raise MalformedChannel(
-                    f"Hub channel {get_channel_uuid(hub)} "
-                    f"has invalid peer entry: {peer}"
-                )
-            hubs_by_peer_representation[peer].append(hub)
+    hub_map = {get_channel_uuid(hub): hub for hub in hubs}
 
     return {
-        get_channel_uuid(spoke): hubs_by_peer_representation.get(
-            create_hub_peer_representation(spoke), []
-        )
+        get_channel_uuid(spoke): [hub_map[hub_id] for hub_id in get_channel_peers(spoke) if hub_id in hub_map]
         for spoke in spokes
     }
+
+
+def get_channel_peers(port):
+    return port[KEY_BINDING_PROFILE].get("peers", [])
 
 
 def filter_ports_by_device_owner(filter_regex, port_list):

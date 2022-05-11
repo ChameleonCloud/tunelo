@@ -17,6 +17,7 @@ from tunelo.api.utils import (
     create_hub_peer_representation,
     filter_ports_by_device_owner,
     get_channel_device_owner,
+    get_channel_peers,
     get_channel_peers_spokes,
     get_channel_project_id,
     get_channel_properties,
@@ -183,16 +184,14 @@ def create_channel(channel_definition=None):
             f"channel_address {channel_address} does not fit in subnet {subnet_cidr}"
         )
 
+    # Ensure the hub can be resolved first; we need its ID when we create the spoke.
+    hub = resolve_hub(subnet_meta, project_id, name, channel_type)
+
+    # Set the initial peer list
+    properties["peers"] = [get_channel_uuid(hub)]
     spoke = create_spoke(
         project_id, name, subnet_meta, channel_type, channel_address, properties
     )
-
-    # The current channel representation returned does not include the new spoke
-    # in the hub's list of peers, so we shove the new spoke spoke as s new peer
-    # into new hub to avoid an additional network round-trip.
-    hub = resolve_hub(subnet_meta, project_id, name, channel_type)
-    hub_peers = hub["binding:profile"].setdefault("peers", [])
-    hub_peers.append(create_hub_peer_representation(spoke))
 
     return create_channel_representation(spoke, [hub])
 
@@ -209,21 +208,12 @@ def destroy_channel(uuid):
         uuid: the UUID of the channel must be equivalent to the ``id`` field
         of a spoke port.
     """
-    _, peers = get_channel_by_uuid(uuid)
     neutron = get_neutron_client()
 
     try:
         neutron.delete_port(uuid)
     except PortNotFoundClient:
         raise NotFound(f"Channel {uuid} not found.")
-
-    for peer in itertools.chain(*peers.values()):
-        peer_peers = peer["binding:profile"]["peers"]
-        # If removing the last peer from our peer, our peer is now an orphan and can
-        # also be cleaned up.
-        # TODO(jason): this should probably be optional behavior in the future.
-        if len(peer_peers) == 1:
-            neutron.delete_port(get_channel_uuid(peer))
 
 
 @route(
