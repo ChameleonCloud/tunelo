@@ -13,9 +13,8 @@ from tunelo.api.hooks import get_neutron_client, route
 from tunelo.api.schema import hub_device_owner_pattern, spoke_device_owner_pattern
 from tunelo.api.utils import (
     create_channel_representation,
-    filter_ports_by_device_owner,
     get_channel_device_owner,
-    get_channel_peers_spokes,
+    match_spokes_to_hubs,
     get_channel_project_id,
     get_channel_properties,
     get_channel_type,
@@ -64,11 +63,15 @@ def list_channels():
     locally. Peer hubs for each spoke are mapped, and then a list of
     channel representations is returned for all of the spokes
     """
-    ports = get_neutron_client().list_ports()
-    spokes = filter_ports_by_device_owner(spoke_device_owner_pattern, ports["ports"])
-    hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports["ports"])
 
-    spoke_peers = get_channel_peers_spokes(spokes, hubs)
+    def _filter_by_device_owner(filter_regex, port_list):
+        return [p for p in port_list if filter_regex.match(get_channel_device_owner(p))]
+
+    ports = get_neutron_client().list_ports()["ports"]
+    spokes = _filter_by_device_owner(spoke_device_owner_pattern, ports)
+    hubs = _filter_by_device_owner(hub_device_owner_pattern, ports)
+
+    spoke_peers = match_spokes_to_hubs(spokes, hubs)
 
     return {
         "channels": [
@@ -92,7 +95,7 @@ def get_channel(uuid):
     """
     spoke, peers = get_channel_by_uuid(uuid)
 
-    return create_channel_representation(spoke, peers.get(uuid, []))
+    return create_channel_representation(spoke, peers)
 
 
 def get_channel_by_uuid(uuid) -> "Tuple[dict, dict[str, List[dict]]]":
@@ -120,9 +123,9 @@ def get_channel_by_uuid(uuid) -> "Tuple[dict, dict[str, List[dict]]]":
     project_id = get_channel_project_id(spoke)
     hubs = neutron.list_ports(device_owner=hub_owner, project_id=project_id)["ports"]
     # Confirm that a hub is our peer by matching it to our public key
-    peers = get_channel_peers_spokes([spoke], hubs)
+    spoke_to_hubs_map = match_spokes_to_hubs([spoke], hubs)
 
-    return spoke, peers
+    return spoke, spoke_to_hubs_map[get_channel_uuid(spoke)]
 
 
 @route(
@@ -222,14 +225,6 @@ def destroy_channel(uuid):
 @schema.validate(uuid=schema.uuid, patch=schema.UPDATE_CHANNEL_SCHEMA)
 def update_channel(uuid, patch=None):
     """Implements the UpdateChannel API function"""
-    spoke, peers = get_channel_by_uuid(uuid)
-
-    channel_type = get_channel_type(spoke)
-    if channel_type not in schema.VALID_CHANNEL_TYPES:
-        raise MalformedChannel(
-            f"Channel {uuid} has unknown channel type {channel_type}."
-        )
-
     # Because properties are nested, and we don't want to fully overwrite,
     # we update the fields manually rather than using dict.update() on the whole port
     update_dict = {}
@@ -245,7 +240,8 @@ def update_channel(uuid, patch=None):
     get_neutron_client().update_port(uuid, body={"port": update_dict})
 
     spoke, peers = get_channel_by_uuid(uuid)
-    return create_channel_representation(spoke, peers[uuid])
+
+    return create_channel_representation(spoke, peers)
 
 
 def get_or_create_subnet(subnet, channel_address, project_id):
@@ -375,8 +371,11 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     """
     neutron = get_neutron_client()
     subnet_id = subnet_meta[KEY_ID]
-    ports = neutron.list_ports(project_id=project_id)
-    hubs = filter_ports_by_device_owner(hub_device_owner_pattern, ports["ports"])
+    device_owner = f"channel:{channel_type}:hub"
+    hubs = neutron.list_ports(
+        project_id=project_id,
+        device_owner=device_owner,
+    )["ports"]
     hubs_in_subnet = [
         hub
         for hub in hubs
@@ -392,7 +391,7 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
         KEY_FIXED_IP: [{KEY_SUBNET_ID: subnet_id}],
         KEY_NETWORK_ID: subnet_meta[KEY_NETWORK_ID],
         KEY_HOST_ID: resolve_host(channel_type),
-        KEY_DEVICE_OWNER: f"channel:{channel_type}:hub",
+        KEY_DEVICE_OWNER: device_owner,
         KEY_BINDING_PROFILE: {},
     }
     if name:

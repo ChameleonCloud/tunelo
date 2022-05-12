@@ -66,21 +66,6 @@ def create_spoke_peer_representation(port):
     }
 
 
-def create_hub_peer_representation(spoke):
-    """Creates a peer representation in the form of pubkey|endpoint|allowed_ips.
-    This is how peers are listed in the ``peers`` attribute of a hub port's
-    ``binding:profile``.
-
-    Args:
-        spoke: The spoke port that will be represented
-    """
-    spoke_props = get_channel_properties(spoke)
-    pubkey = spoke_props.get("public_key") or ""
-    endpoint = spoke_props.get("endpoint") or ""
-    allowed_ips = ",".join([ip["ip_address"] for ip in spoke["fixed_ips"]])
-    return f"{pubkey}|{endpoint}|{allowed_ips}"
-
-
 def get_channel_properties(port):
     """Retreives a channel's binding:profile dict"""
     binding_profile = port["binding:profile"]
@@ -133,7 +118,7 @@ def get_channel_project_id(port):
     return port["project_id"]
 
 
-def get_channel_peers_spokes(spokes, hubs):
+def match_spokes_to_hubs(spokes, hubs):
     """Gets a peers for a collection of spoke ports
 
     A peer for a spoke channel is, for now, defined as any hub channel which has
@@ -160,14 +145,10 @@ def get_channel_peers_spokes(spokes, hubs):
     hub_map = {get_channel_uuid(hub): hub for hub in hubs}
 
     return {
-        get_channel_uuid(spoke): [hub_map[hub_id] for hub_id in get_channel_peers(spoke) if hub_id in hub_map]
+        get_channel_uuid(spoke): [
+            hub_map[hub_id]
+            for hub_id in spoke[KEY_BINDING_PROFILE].get("peers", [])
+            if hub_id in hub_map
+        ]
         for spoke in spokes
     }
-
-
-def get_channel_peers(port):
-    return port[KEY_BINDING_PROFILE].get("peers", [])
-
-
-def filter_ports_by_device_owner(filter_regex, port_list):
-    return [p for p in port_list if filter_regex.match(get_channel_device_owner(p))]
