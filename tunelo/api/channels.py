@@ -225,13 +225,21 @@ def destroy_channel(uuid):
 @schema.validate(uuid=schema.uuid, patch=schema.UPDATE_CHANNEL_SCHEMA)
 def update_channel(uuid, patch=None):
     """Implements the UpdateChannel API function"""
+    existing, _ = get_channel_by_uuid(uuid)
+
+    channel_type = get_channel_type(existing)
+    if channel_type not in schema.VALID_CHANNEL_TYPES:
+        raise MalformedChannel(
+            f"Channel {uuid} has unknown channel type {channel_type}."
+        )
+
     # Because properties are nested, and we don't want to fully overwrite,
     # we update the fields manually rather than using dict.update() on the whole port
     update_dict = {}
     name = patch.get("name")
     properties = patch.get("properties")
     if properties:
-        channel_properties = get_channel_properties(spoke)
+        channel_properties = get_channel_properties(existing)
         channel_properties.update(properties)
         update_dict["binding:profile"] = channel_properties
     if name:
@@ -240,7 +248,6 @@ def update_channel(uuid, patch=None):
     get_neutron_client().update_port(uuid, body={"port": update_dict})
 
     spoke, peers = get_channel_by_uuid(uuid)
-
     return create_channel_representation(spoke, peers)
 
 
