@@ -1,13 +1,9 @@
-from collections import defaultdict
-from functools import partial
-
 from flask import make_response
 from oslo_log import log
 from tunelo.api.channels import KEY_BINDING_PROFILE
 
 from tunelo.api.schema import VALID_CHANNEL_TYPES
 from tunelo.api.schema import device_owner_pattern
-from tunelo.api.schema import valid_hub_peer_pattern
 from tunelo.common.exception import MalformedChannel
 
 LOG = log.getLogger(__name__)
@@ -30,7 +26,7 @@ def create_channel_representation(port, peers=None):
     for a channel are derived manually in this function to ensure that the order
     of keys in the objects returned by the API are always the same.
 
-    Args:
+    Args
         port: A dictionary which describes metadata of the port
             for which we are deriving a channel representation.
             This should be an un-modified reference to a dictionary

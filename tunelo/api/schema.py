@@ -14,9 +14,6 @@ from tunelo.common.exception import MissingParameterValue
 spoke_device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):spoke")
 hub_device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):hub")
 device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):(spoke|hub)")
-valid_hub_peer_pattern = re.compile(
-    r"(?P<public_key>.+)\|(?P<endpoint>.*)\|(?P<allowed_ips>.+)"
-)
 
 # Some JSON schema helpers
 STRING = {"type": "string"}
