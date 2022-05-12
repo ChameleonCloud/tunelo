@@ -1,4 +1,3 @@
-import itertools
 import random
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 from typing import List, Tuple
@@ -14,10 +13,8 @@ from tunelo.api.hooks import get_neutron_client, route
 from tunelo.api.schema import hub_device_owner_pattern, spoke_device_owner_pattern
 from tunelo.api.utils import (
     create_channel_representation,
-    create_hub_peer_representation,
     filter_ports_by_device_owner,
     get_channel_device_owner,
-    get_channel_peers,
     get_channel_peers_spokes,
     get_channel_project_id,
     get_channel_properties,
