@@ -2,31 +2,31 @@
 authors = ["Chameleon <contact@chameleoncloud.org>"]
 description = "Chameleon on-demand tunnel provisioning service"
 name = "tunelo"
-version = "0.0.1"
+version = "4.0.0"
 include = ["etc/tunelo"]
 exclude = ["tunelo/tests"]
 
 # All dependencies should be at minimum the value of the upper constraint
-# for the targeted OpenStack release. These values are for the Train cycle:
-# https://github.com/openstack/requirements/blob/stable/train/upper-constraints.txt
+# for the targeted OpenStack release. These values are for the Xena cycle:
+# https://github.com/openstack/requirements/blob/stable/xena/upper-constraints.txt
 [tool.poetry.dependencies]
 # Kolla containers currently use 3.6, this can eventually be updated to 3.8
-python = "^3.6"
-Flask = "^1.1.1"
-importlib-metadata = { version = "^0.20", python = "<3.7" }
-"oslo.config" = "^6.11.3"
-"oslo.log" = "^3.44.3"
-osprofiler = "^2.8.2"
-"oslo.service" = "^1.40.2"
-"oslo.messaging" = "^10.2.3"
-"oslo.middleware" = "^3.38.1"
-keystonemiddleware = "^7.0.1"
-"oslo.policy" = "^2.3.4"
-"oslo.reports" = "^1.30.0"
-futurist = "^1.9.0"
-"oslo.rootwrap" = "^5.16.1"
-python-neutronclient = "^6.14.1"
-jsonschema = "^3.0.2"
+python = "^3.8"
+Flask = "^2.0.1"
+importlib-metadata = "^4.8.1"
+"oslo.config" = "^8.7.1"
+"oslo.log" = "^4.6.0"
+osprofiler = "^3.4.2"
+"oslo.service" = "^2.6.2"
+"oslo.messaging" = "^12.9.3"
+"oslo.middleware" = "^4.4.0"
+keystonemiddleware = "^9.3.0"
+"oslo.policy" = "^3.8.3"
+"oslo.reports" = "^2.3.0"
+futurist = "^2.4.0"
+"oslo.rootwrap" = "^6.3.1"
+python-neutronclient = "^7.6.0"
+jsonschema = "^3.2.0"
 
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
