@@ -508,11 +508,11 @@ test = ["PyYAML (>=3.12)", "bandit (>=1.1.0,<1.6.0)", "betamax (>=0.7.0)", "cove
 
 [[package]]
 name = "keystonemiddleware"
-version = "9.5.0"
+version = "10.0.0"
 description = "Middleware for OpenStack Identity"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">=3.8"
 
 [package.dependencies]
 keystoneauth1 = ">=3.12.0"
@@ -1029,8 +1029,8 @@ optional = false
 python-versions = "*"
 
 [package.extras]
+docs = ["pylons-sphinx-themes", "Sphinx (>=1.7.5)"]
 paste = ["paste"]
-docs = ["Sphinx (>=1.7.5)", "pylons-sphinx-themes"]
 
 [[package]]
 name = "pathspec"
@@ -1057,8 +1057,8 @@ optional = false
 python-versions = ">=3.6"
 
 [package.extras]
-dev = ["pre-commit", "tox"]
-testing = ["pytest", "pytest-benchmark"]
+testing = ["pytest-benchmark", "pytest"]
+dev = ["tox", "pre-commit"]
 
 [[package]]
 name = "prettytable"
@@ -1591,7 +1591,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "f48dd5ec7ba897ee38be6852f85cc5d4a04b218c4d9eb4037fa42841de85b7c6"
+content-hash = "f0ad17a92a58983cadaf347abda4ec508a20c3c337963c19dbceba262b775bbc"
 
 [metadata.files]
 amqp = [
@@ -1891,8 +1891,8 @@ keystoneauth1 = [
     {file = "keystoneauth1-4.6.0.tar.gz", hash = "sha256:066f1addd89114cd6a1b9cb3555c8eaa7d013673ee1034bdfe506068804a9e05"},
 ]
 keystonemiddleware = [
-    {file = "keystonemiddleware-9.5.0-py3-none-any.whl", hash = "sha256:6654d46b30f8a77f19f1b4743a0042ef5b762930f2dbadcc033150c2d21808d0"},
-    {file = "keystonemiddleware-9.5.0.tar.gz", hash = "sha256:4ae431d3c72d4f3a4c451dc4dea75565c50c21715fe61ee4503df53c8d581731"},
+    {file = "keystonemiddleware-10.0.0-py3-none-any.whl", hash = "sha256:7ee300bd34736d3a1946a4e671aff6c1aad626a6ca30dd15bc6063f0ddf00bbf"},
+    {file = "keystonemiddleware-10.0.0.tar.gz", hash = "sha256:763b606acc7161a8c57b245f14b37e75457439b4954eba1aa680a46ce7605f02"},
 ]
 kombu = [
     {file = "kombu-5.2.4-py3-none-any.whl", hash = "sha256:8b213b24293d3417bcf0d2f5537b7f756079e3ea232a8386dcc89a59fd2361a4"},
