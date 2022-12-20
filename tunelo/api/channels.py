@@ -31,25 +31,6 @@ from tunelo.conf import CONF
 
 bp = Blueprint("channels", __name__)
 
-KEY_ID = "id"
-KEY_NAME = "name"
-KEY_PROJECT_ID = "project_id"
-KEY_FIXED_IP = "fixed_ips"
-KEY_IP_ADDRESS = "ip_address"
-KEY_SUBNET = "subnet"
-KEY_SUBNET_ID = "subnet_id"
-KEY_SUBNET_RANGE = "subnet-range"
-KEY_CIDR = "cidr"
-KEY_NETWORK = "network"
-KEY_NETWORK_ID = "network_id"
-KEY_HOST = "host"
-KEY_HOST_ID = "binding:host_id"
-KEY_CHANNEL_ADDRESS = "channel_address"
-KEY_CHANNEL_TYPE = "channel_type"
-KEY_PROPERTIES = "properties"
-KEY_DEVICE_OWNER = "device_owner"
-KEY_BINDING_PROFILE = "binding:profile"
-
 
 def _is_cidr(val):
     return netutils.is_valid_cidr(val) or netutils.is_valid_ipv6_cidr(val)
@@ -164,19 +145,19 @@ def create_channel(channel_definition=None):
     """
     # Since schema is validated ahead of time, we are free to make unchecked assumptions
     # about the format of the data in the payload
-    channel_type = channel_definition[KEY_CHANNEL_TYPE]
+    channel_type = channel_definition[schema.KEY_CHANNEL_TYPE]
     if channel_type not in schema.VALID_CHANNEL_TYPES:
         raise InvalidParameterValue(f"Unknown channel type {channel_type}")
 
-    properties = channel_definition[KEY_PROPERTIES]
+    properties = channel_definition[schema.KEY_PROPERTIES]
 
-    name = channel_definition.get(KEY_NAME)
-    project_id = channel_definition[KEY_PROJECT_ID]
-    subnet = channel_definition.get(KEY_SUBNET)
-    channel_address = channel_definition.get(KEY_CHANNEL_ADDRESS)
+    name = channel_definition.get(schema.KEY_NAME)
+    project_id = channel_definition[schema.KEY_PROJECT_ID]
+    subnet = channel_definition.get(schema.KEY_SUBNET)
+    channel_address = channel_definition.get(schema.KEY_CHANNEL_ADDRESS)
 
     subnet_meta = get_or_create_subnet(subnet, channel_address, project_id)
-    subnet_cidr = subnet_meta[KEY_CIDR]
+    subnet_cidr = subnet_meta[schema.KEY_CIDR]
     if (subnet and channel_address) and (
         ip_address(channel_address) not in ip_network(subnet_cidr)
     ):
@@ -266,7 +247,10 @@ def get_or_create_subnet(subnet, channel_address, project_id):
                     name=subnet_ref, project_id=project_id
                 )["subnets"]
 
-            if matching_subnets and matching_subnets[0][KEY_PROJECT_ID] != project_id:
+            if (
+                matching_subnets
+                and matching_subnets[0][schema.KEY_PROJECT_ID] != project_id
+            ):
                 raise InvalidParameterValue(
                     f"Subnet {subnet_ref} is not associated with project {project_id}"
                 )
@@ -286,7 +270,7 @@ def get_or_create_subnet(subnet, channel_address, project_id):
         matching_subnets = [
             sub
             for sub in matching_subnets["subnets"]
-            if channel_ip in ip_network(sub[KEY_CIDR])
+            if channel_ip in ip_network(sub[schema.KEY_CIDR])
         ]
     elif subnet:
         matching_subnets = _resolve_subnets(subnet)
@@ -320,9 +304,9 @@ def new_subnet(project_id, cidr, channel_address):
         subnet_meta = neutron.create_subnet(
             {
                 "subnet": {
-                    KEY_CIDR: cidr,
+                    schema.KEY_CIDR: cidr,
                     "ip_version": ip_version,
-                    "network_id": network[KEY_ID],
+                    "network_id": network[schema.KEY_ID],
                 }
             }
         )
@@ -340,7 +324,7 @@ def new_subnet(project_id, cidr, channel_address):
                 new_cidr = ":".join(str(ip).split(":")[:-4]) + "::0/64"
             create_subnet_body = {
                 "subnet": {
-                    "network_id": network[KEY_ID],
+                    "network_id": network[schema.KEY_ID],
                     "ip_version": ip_version,
                     "cidr": new_cidr,
                 }
@@ -357,7 +341,10 @@ def new_subnet(project_id, cidr, channel_address):
                     f"to provision new subnet."
                 )
             create_subnet_body = {
-                "subnet": {"network_id": network[KEY_ID], "subnetpool": subnet_pools[0]}
+                "subnet": {
+                    "network_id": network[schema.KEY_ID],
+                    "subnetpool": subnet_pools[0],
+                }
             }
         subnet_meta = neutron.create_subnet(create_subnet_body)
 
@@ -369,7 +356,7 @@ def resolve_host(channel_type):
     agents = neutron.list_agents(binary=f"neutron-{channel_type}-agent")
     if len(agents["agents"]) == 0:
         raise NotFound(f"Could not find any hosts running {channel_type} agent.")
-    return random.choice(agents["agents"])[KEY_HOST]
+    return random.choice(agents["agents"])[schema.KEY_HOST]
 
 
 def resolve_hub(subnet_meta, project_id, name, channel_type):
@@ -377,7 +364,7 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     TODO test channel creation for existing hub, non-existing hubs, and multiple hubs
     """
     neutron = get_neutron_client()
-    subnet_id = subnet_meta[KEY_ID]
+    subnet_id = subnet_meta[schema.KEY_ID]
     device_owner = f"channel:{channel_type}:hub"
     hubs = neutron.list_ports(
         project_id=project_id,
@@ -386,7 +373,9 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     hubs_in_subnet = [
         hub
         for hub in hubs
-        if any(fip[KEY_SUBNET_ID] == subnet_id for fip in hub[KEY_FIXED_IP])
+        if any(
+            fip[schema.KEY_SUBNET_ID] == subnet_id for fip in hub[schema.KEY_FIXED_IP]
+        )
     ]
 
     if len(hubs_in_subnet) > 0:
@@ -394,15 +383,15 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
         return random.choice(hubs_in_subnet)
 
     hub_creation_request = {
-        KEY_PROJECT_ID: project_id,
-        KEY_FIXED_IP: [{KEY_SUBNET_ID: subnet_id}],
-        KEY_NETWORK_ID: subnet_meta[KEY_NETWORK_ID],
-        KEY_HOST_ID: resolve_host(channel_type),
-        KEY_DEVICE_OWNER: device_owner,
-        KEY_BINDING_PROFILE: {},
+        schema.KEY_PROJECT_ID: project_id,
+        schema.KEY_FIXED_IP: [{schema.KEY_SUBNET_ID: subnet_id}],
+        schema.KEY_NETWORK_ID: subnet_meta[schema.KEY_NETWORK_ID],
+        schema.KEY_HOST_ID: resolve_host(channel_type),
+        schema.KEY_DEVICE_OWNER: device_owner,
+        schema.KEY_BINDING_PROFILE: {},
     }
     if name:
-        hub_creation_request[KEY_NAME] = name
+        hub_creation_request[schema.KEY_NAME] = name
 
     new_hub = neutron.create_port({"port": hub_creation_request})
 
@@ -413,23 +402,25 @@ def create_spoke(
     project_id, name, subnet_meta, channel_type, channel_address, properties
 ):
     """Creates a new spoke port using the provided channel information"""
-    subnet_id = subnet_meta[KEY_ID]
+    subnet_id = subnet_meta[schema.KEY_ID]
     # If there are no hubs to attach to, we have to create a new one
     if not channel_address:
         # If channel address is not provided, neutron will find us an available IP
-        fixed_ip = [{KEY_SUBNET_ID: subnet_id}]
+        fixed_ip = [{schema.KEY_SUBNET_ID: subnet_id}]
     else:
-        fixed_ip = [{KEY_SUBNET_ID: subnet_id, KEY_IP_ADDRESS: channel_address}]
+        fixed_ip = [
+            {schema.KEY_SUBNET_ID: subnet_id, schema.KEY_IP_ADDRESS: channel_address}
+        ]
 
     spoke_creation_request = {
-        KEY_PROJECT_ID: project_id,
-        KEY_FIXED_IP: fixed_ip,
-        KEY_NETWORK_ID: subnet_meta[KEY_NETWORK_ID],
-        KEY_DEVICE_OWNER: f"channel:{channel_type}:spoke",
-        KEY_BINDING_PROFILE: properties,
+        schema.KEY_PROJECT_ID: project_id,
+        schema.KEY_FIXED_IP: fixed_ip,
+        schema.KEY_NETWORK_ID: subnet_meta[schema.KEY_NETWORK_ID],
+        schema.KEY_DEVICE_OWNER: f"channel:{channel_type}:spoke",
+        schema.KEY_BINDING_PROFILE: properties,
     }
     if name:
-        spoke_creation_request[KEY_NAME] = name
+        spoke_creation_request[schema.KEY_NAME] = name
 
     try:
         spoke = get_neutron_client().create_port({"port": spoke_creation_request})
