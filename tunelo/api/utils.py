@@ -1,9 +1,11 @@
 from flask import make_response
 from oslo_log import log
-from tunelo.api.channels import KEY_BINDING_PROFILE
 
-from tunelo.api.schema import VALID_CHANNEL_TYPES
-from tunelo.api.schema import device_owner_pattern
+from tunelo.api.schema import (
+    KEY_BINDING_PROFILE,
+    VALID_CHANNEL_TYPES,
+    device_owner_pattern,
+)
 from tunelo.common.exception import MalformedChannel
 
 LOG = log.getLogger(__name__)

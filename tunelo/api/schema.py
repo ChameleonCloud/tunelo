@@ -10,6 +10,25 @@ from oslo_utils import uuidutils
 from tunelo.common.exception import Invalid
 from tunelo.common.exception import InvalidParameterValue
 from tunelo.common.exception import MissingParameterValue
+KEY_ID = "id"
+KEY_NAME = "name"
+KEY_PROJECT_ID = "project_id"
+KEY_FIXED_IP = "fixed_ips"
+KEY_IP_ADDRESS = "ip_address"
+KEY_SUBNET = "subnet"
+KEY_SUBNET_ID = "subnet_id"
+KEY_SUBNET_RANGE = "subnet-range"
+KEY_CIDR = "cidr"
+KEY_NETWORK = "network"
+KEY_NETWORK_ID = "network_id"
+KEY_HOST = "host"
+KEY_HOST_ID = "binding:host_id"
+KEY_CHANNEL_ADDRESS = "channel_address"
+KEY_CHANNEL_TYPE = "channel_type"
+KEY_PROPERTIES = "properties"
+KEY_DEVICE_OWNER = "device_owner"
+KEY_BINDING_PROFILE = "binding:profile"
+
 
 spoke_device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):spoke")
 hub_device_owner_pattern = re.compile(r"channel:(?P<channel_type>.*):hub")
