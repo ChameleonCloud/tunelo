@@ -1,15 +1,17 @@
 import inspect
 import re
-from functools import partial
-from functools import wraps
+from functools import partial, wraps
 from typing import Optional
 
 import jsonschema
 from oslo_utils import uuidutils
 
-from tunelo.common.exception import Invalid
-from tunelo.common.exception import InvalidParameterValue
-from tunelo.common.exception import MissingParameterValue
+from tunelo.common.exception import (
+    Invalid,
+    InvalidParameterValue,
+    MissingParameterValue,
+)
+
 KEY_ID = "id"
 KEY_NAME = "name"
 KEY_PROJECT_ID = "project_id"

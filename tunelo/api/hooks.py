@@ -1,8 +1,7 @@
 import traceback
 from functools import wraps
 
-from flask import Blueprint
-from flask import request
+from flask import Blueprint, request
 from keystoneauth1 import session as ks_session
 from keystonemiddleware.auth_token import AuthProtocol
 from keystonemiddleware.auth_token._request import _AuthTokenRequest
@@ -14,8 +13,7 @@ from werkzeug import exceptions as werkzeug_exc
 
 from tunelo.api.utils import make_error_response
 from tunelo.common import context as tunelo_context
-from tunelo.common import exception
-from tunelo.common import keystone
+from tunelo.common import exception, keystone
 from tunelo.conf import CONF
 
 LOG = log.getLogger(__name__)
