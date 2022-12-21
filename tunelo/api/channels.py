@@ -14,11 +14,11 @@ from tunelo.api.schema import hub_device_owner_pattern, spoke_device_owner_patte
 from tunelo.api.utils import (
     create_channel_representation,
     get_channel_device_owner,
-    match_spokes_to_hubs,
     get_channel_project_id,
     get_channel_properties,
     get_channel_type,
     get_channel_uuid,
+    match_spokes_to_hubs,
 )
 from tunelo.common.exception import (
     Conflict,
