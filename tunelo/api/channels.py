@@ -277,10 +277,14 @@ def get_or_create_subnet(subnet, channel_address, project_id):
     else:
         matching_subnets = []
 
+    subnet_meta = None
     if not matching_subnets:
         if CONF.default_subnet:
-            subnet_meta = _resolve_subnets(CONF.default_subnet)[0]
-        else:
+            default_subnets = _resolve_subnets(CONF.default_subnet)
+            if default_subnets:
+                subnet_meta = default_subnets[0]
+
+        if not subnet_meta:
             # If no subnet matching our criteria exists, we have to create a new one
             # on a valid network
             subnet_meta = new_subnet(project_id, subnet, channel_address)
