@@ -7,6 +7,7 @@ from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
 from oslo_utils import netutils, uuidutils
+from oslo_log import log
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, route
@@ -28,6 +29,7 @@ from tunelo.common.exception import (
     NotFound,
 )
 from tunelo.conf import CONF
+LOG = log.getLogger(__name__)
 
 bp = Blueprint("channels", __name__)
 
@@ -166,15 +168,15 @@ def create_channel(channel_definition=None):
         )
 
     # Ensure the hub can be resolved first; we need its ID when we create the spoke.
-    hub = resolve_hub(subnet_meta, project_id, name, channel_type)
+    hub_list = resolve_hub(subnet_meta, project_id, name, channel_type)
 
     # Set the initial peer list
-    properties["peers"] = [get_channel_uuid(hub)]
+    properties["peers"] = [get_channel_uuid(hub) for hub in hub_list]
     spoke = create_spoke(
         project_id, name, subnet_meta, channel_type, channel_address, properties
     )
 
-    return create_channel_representation(spoke, [hub])
+    return create_channel_representation(spoke, hub_list)
 
 
 @route("/channels/<uuid>", blueprint=bp, methods=["DELETE"])
@@ -363,7 +365,7 @@ def resolve_host(channel_type):
     return random.choice(agents["agents"])[schema.KEY_HOST]
 
 
-def resolve_hub(subnet_meta, project_id, name, channel_type):
+def resolve_hub(subnet_meta, project_id, name, channel_type) -> List[object]:
     """
     TODO test channel creation for existing hub, non-existing hubs, and multiple hubs
     """
@@ -383,9 +385,12 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
     ]
 
     if len(hubs_in_subnet) > 0:
-        # If there are any existing hubs in the subnet, latch onto a random one
-        return random.choice(hubs_in_subnet)
+        LOG.debug("found %s hubs for subnet %s", hubs_in_subnet, subnet_id)
+        # If there are any existing hubs in the subnet, return the list of 
+        # neutron ports corresponding to them
+        return hubs_in_subnet
 
+    # no hubs, so create one
     hub_creation_request = {
         schema.KEY_PROJECT_ID: project_id,
         schema.KEY_FIXED_IP: [{schema.KEY_SUBNET_ID: subnet_id}],
