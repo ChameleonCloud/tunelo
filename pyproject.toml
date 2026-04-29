@@ -1,77 +1,61 @@
-[tool.poetry]
-authors = ["Chameleon <contact@chameleoncloud.org>"]
-description = "Chameleon on-demand tunnel provisioning service"
+[project]
 name = "tunelo"
 version = "4.0.0"
-include = ["etc/tunelo"]
-exclude = ["tunelo/tests"]
+description = "Chameleon on-demand tunnel provisioning service"
+authors = [{ name = "Chameleon", email = "contact@chameleoncloud.org" }]
+requires-python = ">=3.8.2,<4"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+]
+dependencies = [
+    "Flask",
+    "importlib-metadata",
+    "oslo.config",
+    "oslo.log",
+    "osprofiler",
+    "oslo.service",
+    "oslo.messaging",
+    "oslo.middleware",
+    "keystonemiddleware",
+    "oslo.policy",
+    "oslo.reports",
+    "futurist",
+    "oslo.rootwrap",
+    "python-neutronclient",
+    "jsonschema",
+]
 
-# All dependencies should be at minimum the value of the upper constraint
-# for the targeted OpenStack release. These values are for the Xena cycle:
-# https://github.com/openstack/requirements/blob/stable/xena/upper-constraints.txt
-[tool.poetry.dependencies]
-# Kolla containers currently use 3.6, this can eventually be updated to 3.8
-python = "^3.8.2"
-Flask = "<=2.0.1"
-importlib-metadata = "<=4.8.1"
-"oslo.config" = "<=8.7.1"
-"oslo.log" = "<=4.6.0"
-osprofiler = "<=3.4.2"
-"oslo.service" = "<=2.6.2"
-"oslo.messaging" = "<=12.9.4"
-"oslo.middleware" = "<=4.4.0"
-keystonemiddleware = "<=9.3.0"
-"oslo.policy" = "<=3.8.3"
-"oslo.reports" = "<=2.3.0"
-futurist = "<=2.4.0"
-"oslo.rootwrap" = "<=6.3.1"
-python-neutronclient = "<=7.6.0"
-jsonschema = "<=3.2.0"
-
-
-[tool.poetry.group.dev.dependencies]
-black = "^22.12.0"
-flake8 = "^6.0.0"
-pytest = "^7.2.0"
-oslotest = "^4.4.1"
-pytest-watch = "^4.2.0"
-pytest-mock = "^3.10.0"
-flake8-bugbear = "^22.12.6"
-isort = "^5.11.3"
-pydocstyle = "^6.1.1"
-
-[tool.poetry.scripts]
+[project.scripts]
 tunelo-api = "tunelo.cmd.api:main"
 tunelo-rootwrap = "oslo_rootwrap.cmd:main"
 
-[tool.poetry.plugins."oslo.config.opts"]
+[project.entry-points."oslo.config.opts"]
 tunelo = "tunelo.conf.opts:list_opts"
 
-[tool.poetry.plugins."oslo.config.opts.defaults"]
+[project.entry-points."oslo.config.opts.defaults"]
 tunelo = "tunelo.conf.opts:update_opt_defaults"
 
-[tool.poetry.plugins."oslo.policy.enforcer"]
+[project.entry-points."oslo.policy.enforcer"]
 tunelo = "tunelo.common.policy:get_oslo_policy_enforcer"
 
-[tool.poetry.plugins."oslo.policy.policies"]
+[project.entry-points."oslo.policy.policies"]
 "tunelo.api" = "tunelo.common.policy:list_policies"
 
+[dependency-groups]
+dev = [
+    "oslotest",
+    "ruff",
+    "stestr",
+]
+
 [build-system]
-build-backend = "poetry.core.masonry.api"
-requires = ["poetry-core>=1.0.0"]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.black]
-# Set line length explicitly.
-# See https://black.readthedocs.io/en/stable/the_black_code_style.html#line-length for more details
-line-length = 88
+[tool.setuptools.packages.find]
+include = ["tunelo*"]
+exclude = ["tunelo.tests*"]
 
-[tool.pytest.ini_options]
-log_cli = true
-log_cli_level = "INFO"
-log_cli_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
-filterwarnings = ["ignore::DeprecationWarning"]
-
-[tool.isort]
-known_first_party = "tunelo"
-profile = "black"
+[tool.setuptools.package-data]
+tunelo = ["etc/tunelo/*"]
