@@ -6,6 +6,7 @@ from flask import Blueprint
 from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
+from oslo_log import log
 from oslo_utils import netutils, uuidutils
 
 from tunelo.api import schema
@@ -28,6 +29,8 @@ from tunelo.common.exception import (
     NotFound,
 )
 from tunelo.conf import CONF
+
+LOG = log.getLogger(__name__)
 
 bp = Blueprint("channels", __name__)
 
@@ -428,3 +431,30 @@ def create_spoke(
         raise Conflict(exc.message.split("\n")[0] + ".")
 
     return spoke["port"]
+
+
+def bootstrap_default_hub():
+    """Idempotently ensure a wireguard hub exists on CONF.default_subnet.
+
+    Called from the API service at startup so operators don't need to issue a
+    throwaway spoke request to lazily provision the hub. resolve_hub() is
+    already idempotent: if a hub already exists in the subnet it is returned
+    unchanged. Returns None when default_subnet is not configured.
+    """
+    if not CONF.default_subnet:
+        return None
+
+    neutron = get_neutron_client()
+    try:
+        subnet_meta = neutron.find_resource("subnet", CONF.default_subnet)
+    except NeutronNotFound:
+        raise NotFound(f"Default subnet {CONF.default_subnet} not found.")
+
+    tunelo_project_id = neutron.session.get_project_id()
+    subnet_project_id = subnet_meta[schema.KEY_PROJECT_ID]
+    if subnet_project_id != tunelo_project_id:
+        raise Invalid(f"{CONF.default_subnet} not owned by Tunelo service project {tunelo_project_id}")
+
+    return resolve_hub(
+        subnet_meta, subnet_project_id, name="default", channel_type="wireguard"
+    )
