@@ -22,7 +22,7 @@ path_opts = [
         "pybasedir",
         default=abspath(join(dirname(__file__), "../")),
         sample_default="/usr/lib/python/site-packages/tunelo/tunelo",
-        help=("Directory where the tunelo python module is " "installed."),
+        help=("Directory where the tunelo python module is installed."),
     ),
     cfg.StrOpt(
         "bindir",
@@ -90,8 +90,10 @@ utils_opts = [
         "tempdir",
         default=tempfile.gettempdir(),
         sample_default=tempfile.gettempdir(),
-        help=("Temporary working directory, default is Python temp " "dir."),
+        help=("Temporary working directory, default is Python temp dir."),
     ),
 ]
 
-opts = chain(*[default_opts, path_opts, service_opts, exc_log_opts, utils_opts])
+opts = chain(
+    *[default_opts, path_opts, service_opts, exc_log_opts, utils_opts]
+)

@@ -30,14 +30,16 @@ def _bootstrap_default_hub_loop():
     while True:
         try:
             bootstrap_default_hub()
-            LOG.info("Default wireguard hub is ready on subnet %s",
-                     CONF.default_subnet)
+            LOG.info(
+                "Default wireguard hub is ready on subnet %s",
+                CONF.default_subnet,
+            )
             return
         except Exception:
             LOG.exception(
-                "Failed to bootstrap default hub on subnet %s; retrying in "
-                "%ss",
-                CONF.default_subnet, _BOOTSTRAP_HUB_RETRY_SECONDS,
+                "Failed to bootstrap default hub on subnet %s; retrying in %ss",
+                CONF.default_subnet,
+                _BOOTSTRAP_HUB_RETRY_SECONDS,
             )
         time.sleep(_BOOTSTRAP_HUB_RETRY_SECONDS)
 

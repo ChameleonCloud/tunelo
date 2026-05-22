@@ -131,7 +131,9 @@ def _inspect(function):
         if param.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
             params.append(param)
         else:
-            raise Invalid(f"Unsupported parameter kind {param.name} {param.kind}")
+            raise Invalid(
+                f"Unsupported parameter kind {param.name} {param.kind}"
+            )
     return params
 
 
@@ -232,7 +234,10 @@ UPDATE_CHANNEL_SCHEMA = schema(
             "name": STRING,
             "properties": {
                 "type": "object",
-                "properties": {"endpoint": IP_ADDRESS, "public_key": PUBLIC_KEY},
+                "properties": {
+                    "endpoint": IP_ADDRESS,
+                    "public_key": PUBLIC_KEY,
+                },
             },
         },
         "additionalProperties": False,

@@ -44,3 +44,6 @@ exclude = ["tunelo.tests*"]
 "etc/tunelo/rootwrap.d" = [
     "etc/tunelo/rootwrap.d/*",
 ]
+
+[tool.ruff]
+line-length = 79

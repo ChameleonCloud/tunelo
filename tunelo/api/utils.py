@@ -96,7 +96,9 @@ def get_channel_type(port):
         )
     channel_type = valid_device_owner.group("channel_type")
     if channel_type not in VALID_CHANNEL_TYPES:
-        raise MalformedChannel(f"Channel type '{channel_type}' is not supported.")
+        raise MalformedChannel(
+            f"Channel type '{channel_type}' is not supported."
+        )
     return channel_type
 
 

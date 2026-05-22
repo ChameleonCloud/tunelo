@@ -11,7 +11,10 @@ from oslo_utils import netutils, uuidutils
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, route
-from tunelo.api.schema import hub_device_owner_pattern, spoke_device_owner_pattern
+from tunelo.api.schema import (
+    hub_device_owner_pattern,
+    spoke_device_owner_pattern,
+)
 from tunelo.api.utils import (
     create_channel_representation,
     get_channel_device_owner,
@@ -49,7 +52,11 @@ def list_channels():
     """
 
     def _filter_by_device_owner(filter_regex, port_list):
-        return [p for p in port_list if filter_regex.match(get_channel_device_owner(p))]
+        return [
+            p
+            for p in port_list
+            if filter_regex.match(get_channel_device_owner(p))
+        ]
 
     ports = get_neutron_client().list_ports()["ports"]
     spokes = _filter_by_device_owner(spoke_device_owner_pattern, ports)
@@ -59,7 +66,9 @@ def list_channels():
 
     return {
         "channels": [
-            create_channel_representation(spoke, spoke_peers[get_channel_uuid(spoke)])
+            create_channel_representation(
+                spoke, spoke_peers[get_channel_uuid(spoke)]
+            )
             for spoke in spokes
         ]
     }
@@ -105,7 +114,9 @@ def get_channel_by_uuid(uuid) -> "Tuple[dict, dict[str, List[dict]]]":
     channel_type = get_channel_type(spoke)
     hub_owner = f"channel:{channel_type}:hub"
     project_id = get_channel_project_id(spoke)
-    hubs = neutron.list_ports(device_owner=hub_owner, project_id=project_id)["ports"]
+    hubs = neutron.list_ports(device_owner=hub_owner, project_id=project_id)[
+        "ports"
+    ]
     # Confirm that a hub is our peer by matching it to our public key
     spoke_to_hubs_map = match_spokes_to_hubs([spoke], hubs)
 
@@ -174,7 +185,12 @@ def create_channel(channel_definition=None):
     # Set the initial peer list
     properties["peers"] = [get_channel_uuid(hub)]
     spoke = create_spoke(
-        project_id, name, subnet_meta, channel_type, channel_address, properties
+        project_id,
+        name,
+        subnet_meta,
+        channel_type,
+        channel_address,
+        properties,
     )
 
     return create_channel_representation(spoke, [hub])
@@ -240,7 +256,9 @@ def get_or_create_subnet(subnet, channel_address, project_id):
 
     def _resolve_subnets(subnet_ref):
         if _is_cidr(subnet):
-            return neutron.list_subnets(cidr=subnet, project_id=project_id)["subnets"]
+            return neutron.list_subnets(cidr=subnet, project_id=project_id)[
+                "subnets"
+            ]
 
         try:
             if uuidutils.is_uuid_like(subnet_ref):
@@ -263,7 +281,9 @@ def get_or_create_subnet(subnet, channel_address, project_id):
 
     if not subnet and channel_address:
         # If a subnet is not provided, we try to find one for the channel address
-        matching_subnets = neutron.list_subnets(project_id=project_id)["subnets"]
+        matching_subnets = neutron.list_subnets(project_id=project_id)[
+            "subnets"
+        ]
         try:
             channel_ip = ip_address(channel_address)
         except (ValueError, TypeError):
@@ -298,9 +318,13 @@ def new_subnet(project_id, cidr, channel_address):
     or by trying to fit a provided channel address
     """
     neutron = get_neutron_client()
-    networks = neutron.list_networks(project_id=project_id, is_default=True)["networks"]
+    networks = neutron.list_networks(project_id=project_id, is_default=True)[
+        "networks"
+    ]
     if len(networks) == 0:
-        raise Invalid("Could not find valid network in project to create new subnet.")
+        raise Invalid(
+            "Could not find valid network in project to create new subnet."
+        )
     network = networks[0]
     if cidr:
         ip_version = 4 if type(ip_network(cidr)) is IPv4Network else 6
@@ -358,7 +382,9 @@ def resolve_host(channel_type):
     neutron = get_neutron_client()
     agents = neutron.list_agents(binary=f"neutron-{channel_type}-agent")
     if len(agents["agents"]) == 0:
-        raise NotFound(f"Could not find any hosts running {channel_type} agent.")
+        raise NotFound(
+            f"Could not find any hosts running {channel_type} agent."
+        )
     return random.choice(agents["agents"])[schema.KEY_HOST]
 
 
@@ -377,7 +403,8 @@ def resolve_hub(subnet_meta, project_id, name, channel_type):
         hub
         for hub in hubs
         if any(
-            fip[schema.KEY_SUBNET_ID] == subnet_id for fip in hub[schema.KEY_FIXED_IP]
+            fip[schema.KEY_SUBNET_ID] == subnet_id
+            for fip in hub[schema.KEY_FIXED_IP]
         )
     ]
 
@@ -412,7 +439,10 @@ def create_spoke(
         fixed_ip = [{schema.KEY_SUBNET_ID: subnet_id}]
     else:
         fixed_ip = [
-            {schema.KEY_SUBNET_ID: subnet_id, schema.KEY_IP_ADDRESS: channel_address}
+            {
+                schema.KEY_SUBNET_ID: subnet_id,
+                schema.KEY_IP_ADDRESS: channel_address,
+            }
         ]
 
     spoke_creation_request = {
@@ -426,7 +456,9 @@ def create_spoke(
         spoke_creation_request[schema.KEY_NAME] = name
 
     try:
-        spoke = get_neutron_client().create_port({"port": spoke_creation_request})
+        spoke = get_neutron_client().create_port(
+            {"port": spoke_creation_request}
+        )
     except IpAddressAlreadyAllocatedClient as exc:
         raise Conflict(exc.message.split("\n")[0] + ".")
 
@@ -453,8 +485,13 @@ def bootstrap_default_hub():
     tunelo_project_id = neutron.session.get_project_id()
     subnet_project_id = subnet_meta[schema.KEY_PROJECT_ID]
     if subnet_project_id != tunelo_project_id:
-        raise Invalid(f"{CONF.default_subnet} not owned by Tunelo service project {tunelo_project_id}")
+        raise Invalid(
+            f"{CONF.default_subnet} not owned by Tunelo service project {tunelo_project_id}"
+        )
 
     return resolve_hub(
-        subnet_meta, subnet_project_id, name="default", channel_type="wireguard"
+        subnet_meta,
+        subnet_project_id,
+        name="default",
+        channel_type="wireguard",
     )
