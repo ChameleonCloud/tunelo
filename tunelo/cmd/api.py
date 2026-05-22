@@ -1,4 +1,4 @@
-"""The Doni Service API."""
+"""The Tunelo Service API."""
 
 import sys
 import threading

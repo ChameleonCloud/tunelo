@@ -6,9 +6,9 @@ opts = [
     cfg.HostAddressOpt(
         "host_ip",
         default="0.0.0.0",
-        help=("The IP address or hostname on which doni-api " "listens."),
+        help=("The IP address or hostname on which tunelo-api listens."),
     ),
-    cfg.PortOpt("port", default=8001, help=("The TCP port on which doni-api listens.")),
+    cfg.PortOpt("port", default=8001, help=("The TCP port on which tunelo-api listens.")),
     cfg.IntOpt(
         "max_limit",
         default=1000,
@@ -23,7 +23,7 @@ opts = [
         mutable=True,
         help=(
             "Public URL to use when building the links to the API "
-            'resources (for example, "https://doni.rocks:8001").'
+            'resources (for example, "https://tunelo.example.com:8001").'
             " If None the links will be built using the request's "
             "host URL. If the API is operating behind a proxy, you "
             "will want to change this to represent the proxy's URL. "
@@ -35,7 +35,7 @@ opts = [
     cfg.IntOpt(
         "api_workers",
         help=(
-            "Number of workers for OpenStack doni API service. "
+            "Number of workers for OpenStack tunelo API service. "
             "The default is equal to the number of CPUs available, "
             "but not more than 4. One worker is used if the CPU "
             "number cannot be detected."
