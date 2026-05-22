@@ -1,29 +1,22 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "tunelo"
-version = "4.0.0"
+version = "7.0.0"
 description = "Chameleon on-demand tunnel provisioning service"
 authors = [{ name = "Chameleon", email = "contact@chameleoncloud.org" }]
 requires-python = ">=3.9"
 dependencies = [
     "Flask",
-    "importlib-metadata",
+    "jsonschema",
+    "keystonemiddleware",
     "oslo.config",
     "oslo.log",
-    "osprofiler",
-    "oslo.service",
-    "oslo.messaging",
     "oslo.middleware",
-    "keystonemiddleware",
     "oslo.policy",
     "oslo.reports",
-    "futurist",
     "oslo.rootwrap",
+    "oslo.service",
+    "osprofiler",
     "python-neutronclient",
-    "jsonschema",
 ]
 
 [project.scripts]
@@ -36,11 +29,18 @@ tunelo = "tunelo.conf.opts:list_opts"
 [project.entry-points."oslo.config.opts.defaults"]
 tunelo = "tunelo.conf.opts:update_opt_defaults"
 
-[project.entry-points."oslo.policy.enforcer"]
-tunelo = "tunelo.common.policy:get_oslo_policy_enforcer"
-
-[project.entry-points."oslo.policy.policies"]
-"tunelo.api" = "tunelo.common.policy:list_policies"
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["tunelo"]
+include = ["tunelo*"]
+exclude = ["tunelo.tests*"]
+
+[tool.setuptools.data-files]
+"etc/tunelo" = [
+    "etc/tunelo/rootwrap.conf",
+]
+"etc/tunelo/rootwrap.d" = [
+    "etc/tunelo/rootwrap.d/*",
+]
