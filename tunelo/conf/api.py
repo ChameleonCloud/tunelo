@@ -8,7 +8,11 @@ opts = [
         default="0.0.0.0",
         help=("The IP address or hostname on which tunelo-api listens."),
     ),
-    cfg.PortOpt("port", default=8001, help=("The TCP port on which tunelo-api listens.")),
+    cfg.PortOpt(
+        "port",
+        default=8001,
+        help=("The TCP port on which tunelo-api listens."),
+    ),
     cfg.IntOpt(
         "max_limit",
         default=1000,

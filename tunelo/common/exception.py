@@ -103,7 +103,7 @@ class TuneloException(Exception):
                 # log the issue and the kwargs
                 prs = ", ".join("%s: %s" % pair for pair in kwargs.items())
                 LOG.exception(
-                    "Exception in string format operation " "(arguments %s)", prs
+                    "Exception in string format operation (arguments %s)", prs
                 )
                 if CONF.fatal_exception_format_errors:
                     raise e

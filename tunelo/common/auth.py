@@ -65,7 +65,9 @@ def add_auth_opts(options, service_type=None):
         add_options(opts, ks_loading.get_auth_plugin_conf_options(plugin))
     add_options(opts, ks_loading.get_session_conf_options())
     if service_type:
-        adapter_opts = ks_loading.get_adapter_conf_options(include_deprecated=False)
+        adapter_opts = ks_loading.get_adapter_conf_options(
+            include_deprecated=False
+        )
         # adding defaults for valid interfaces
         cfg.set_defaults(
             adapter_opts,

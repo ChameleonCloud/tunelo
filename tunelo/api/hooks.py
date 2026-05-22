@@ -62,16 +62,21 @@ class AuthTokenFlaskMiddleware(object):
                 return res
         except webob_exc.HTTPError as exc:
             return make_error_response(
-                "The request you have made requires authentication", exc.status_code
+                "The request you have made requires authentication",
+                exc.status_code,
             )
 
 
 class ContextMiddleware(object):
     def before_request(self):
-        request.context = tunelo_context.RequestContext.from_environ(request.environ)
+        request.context = tunelo_context.RequestContext.from_environ(
+            request.environ
+        )
 
     def after_request(self, res):
-        context: "tunelo_context.RequestContext" = getattr(request, "context", None)
+        context: "tunelo_context.RequestContext" = getattr(
+            request, "context", None
+        )
 
         if context:
             request_id = context.request_id
@@ -94,7 +99,9 @@ def get_neutron_client():
     if not _NEUTRON_CLIENT:
         auth = keystone.get_auth("neutron")
         session = ks_session.Session(auth=auth)
-        _NEUTRON_CLIENT = neutron_client.Client(session=session, raise_errors=False)
+        _NEUTRON_CLIENT = neutron_client.Client(
+            session=session, raise_errors=False
+        )
     return _NEUTRON_CLIENT
 
 
@@ -139,7 +146,7 @@ def route(rule, blueprint: "Blueprint" = None, json_body=None, **options):
                 return make_error_response(str(exc), 409)
             except exception.MalformedChannel as exc:
                 return make_error_response(str(exc), 500)
-            except werkzeug_exc.HTTPException as exc:
+            except werkzeug_exc.HTTPException:
                 # Let Flask handle these with default behavior
                 raise
             except Exception as exc:

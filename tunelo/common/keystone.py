@@ -75,7 +75,9 @@ def get_session(group, **session_kwargs) -> "Session":
     Returns:
         A :class:`keystoneauth1.session.Session` object.
     """
-    return ks_loading.load_session_from_conf_options(CONF, group, **session_kwargs)
+    return ks_loading.load_session_from_conf_options(
+        CONF, group, **session_kwargs
+    )
 
 
 @ks_exceptions
@@ -92,7 +94,9 @@ def get_auth(group, **auth_kwargs) -> "BaseIdentityPlugin":
 
     """
     try:
-        auth = ks_loading.load_auth_from_conf_options(CONF, group, **auth_kwargs)
+        auth = ks_loading.load_auth_from_conf_options(
+            CONF, group, **auth_kwargs
+        )
     except ks_exception.MissingRequiredOptions:
         LOG.error(f"Failed to load auth plugin from group {group}")
         raise
@@ -110,7 +114,9 @@ def get_adapter(group, **adapter_kwargs) -> "Adapter":
     :param group: name of the config section to load adapter options from
 
     """
-    return ks_loading.load_adapter_from_conf_options(CONF, group, **adapter_kwargs)
+    return ks_loading.load_adapter_from_conf_options(
+        CONF, group, **adapter_kwargs
+    )
 
 
 def get_endpoint(group, **adapter_kwargs):
@@ -126,7 +132,8 @@ def get_endpoint(group, **adapter_kwargs):
     result = get_adapter(group, **adapter_kwargs).get_endpoint()
     if not result:
         service_type = adapter_kwargs.get(
-            "service_type", getattr(getattr(CONF, group), "service_type", group)
+            "service_type",
+            getattr(getattr(CONF, group), "service_type", group),
         )
         endpoint_type = adapter_kwargs.get("endpoint_type", "internal")
         raise exception.CatalogNotFound(
