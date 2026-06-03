@@ -18,6 +18,10 @@ class BootstrapDefaultHubTest(base.BaseTestCase):
         self.addCleanup(client_patch.stop)
         self.neutron = client_patch.start().return_value
 
+        session_patch = mock.patch.object(channels, "get_neutron_session")
+        self.addCleanup(session_patch.stop)
+        self.get_neutron_session = session_patch.start()
+
     def test_returns_none_when_default_subnet_unset(self):
         self.cfg.config(default_subnet=None)
 
@@ -31,7 +35,9 @@ class BootstrapDefaultHubTest(base.BaseTestCase):
             "project_id": "owner-project",
             "network_id": "net-uuid",
         }
-        self.neutron.session.get_project_id.return_value = "tunelo-project"
+        self.get_neutron_session.return_value.get_project_id.return_value = (
+            "tunelo-project"
+        )
 
         self.assertRaises(exception.Invalid, channels.bootstrap_default_hub)
 

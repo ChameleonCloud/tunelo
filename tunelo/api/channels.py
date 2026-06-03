@@ -10,7 +10,7 @@ from oslo_log import log
 from oslo_utils import netutils, uuidutils
 
 from tunelo.api import schema
-from tunelo.api.hooks import get_neutron_client, route
+from tunelo.api.hooks import get_neutron_client, get_neutron_session, route
 from tunelo.api.schema import (
     hub_device_owner_pattern,
     spoke_device_owner_pattern,
@@ -482,7 +482,7 @@ def bootstrap_default_hub():
     except NeutronNotFound:
         raise NotFound(f"Default subnet {CONF.default_subnet} not found.")
 
-    tunelo_project_id = neutron.session.get_project_id()
+    tunelo_project_id = get_neutron_session().get_project_id()
     subnet_project_id = subnet_meta[schema.KEY_PROJECT_ID]
     if subnet_project_id != tunelo_project_id:
         raise Invalid(

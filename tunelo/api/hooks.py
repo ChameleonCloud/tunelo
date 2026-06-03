@@ -19,6 +19,7 @@ from tunelo.conf import CONF
 LOG = log.getLogger(__name__)
 
 _NEUTRON_CLIENT = None
+_NEUTRON_SESSION = None
 
 channel_endpoint_blueprint = Blueprint("channels", __name__)
 
@@ -90,6 +91,18 @@ class ContextMiddleware(object):
         return res
 
 
+def get_neutron_session():
+    """Returns an authenticated keystoneauth1 Session for the neutron project.
+
+    The session is created only the first time this function is called.
+    """
+    global _NEUTRON_SESSION
+    if not _NEUTRON_SESSION:
+        auth = keystone.get_auth("neutron")
+        _NEUTRON_SESSION = ks_session.Session(auth=auth)
+    return _NEUTRON_SESSION
+
+
 def get_neutron_client():
     """Returns an authenticated Neutron client.
 
@@ -97,10 +110,8 @@ def get_neutron_client():
     """
     global _NEUTRON_CLIENT
     if not _NEUTRON_CLIENT:
-        auth = keystone.get_auth("neutron")
-        session = ks_session.Session(auth=auth)
         _NEUTRON_CLIENT = neutron_client.Client(
-            session=session, raise_errors=False
+            session=get_neutron_session(), raise_errors=False
         )
     return _NEUTRON_CLIENT
 
