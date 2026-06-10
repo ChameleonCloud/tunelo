@@ -202,12 +202,18 @@ def destroy_channel(uuid):
     """Destroys a channel by UUID
 
     Deletes a spoke port.
-    Deletes the hub if this action would cause the hub to have zero peers
+    TODO: Delete the hub if this action would cause the hub to have zero
+    peers (not implemented).
 
     Args:
         uuid: the UUID of the channel must be equivalent to the ``id`` field
         of a spoke port.
     """
+    # Resolve the channel first: this raises NotFound for ports that do not
+    # exist or are not spoke ports. Otherwise, would permit arbitrary neutron
+    # ports to be deleted.
+    get_channel_by_uuid(uuid)
+
     neutron = get_neutron_client()
 
     try:
