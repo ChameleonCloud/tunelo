@@ -200,11 +200,11 @@
 # From tunelo
 #
 
-# The IP address or hostname on which doni-api listens. (host
-# address value)
+# The IP address or hostname on which tunelo-api listens.
+# (host address value)
 #host_ip = 0.0.0.0
 
-# The TCP port on which doni-api listens. (port value)
+# The TCP port on which tunelo-api listens. (port value)
 # Minimum value: 0
 # Maximum value: 65535
 #port = 8001
@@ -215,17 +215,17 @@
 #max_limit = 1000
 
 # Public URL to use when building the links to the API
-# resources (for example, "https://doni.rocks:8001"). If None
-# the links will be built using the request's host URL. If the
-# API is operating behind a proxy, you will want to change
-# this to represent the proxy's URL. Defaults to None. Ignored
-# when proxy headers parsing is enabled via
+# resources (for example, "https://tunelo.example.com:8001").
+# If None the links will be built using the request's host
+# URL. If the API is operating behind a proxy, you will want
+# to change this to represent the proxy's URL. Defaults to
+# None. Ignored when proxy headers parsing is enabled via
 # [oslo_middleware]enable_proxy_headers_parsing option.
 # (string value)
 # Note: This option can be changed without restarting.
 #public_endpoint = <None>
 
-# Number of workers for OpenStack doni API service. The
+# Number of workers for OpenStack tunelo API service. The
 # default is equal to the number of CPUs available, but not
 # more than 4. One worker is used if the CPU number cannot be
 # detected. (integer value)
