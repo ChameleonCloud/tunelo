@@ -1,0 +1,18 @@
+# Retrieve channel details
+# GET  /channels
+# GET  /channels/{channel_uuid}
+#"channel:get": "role:admin or project_id:%(project_id)s"
+
+# Create a channel
+# POST  /channels
+#"channel:create": "role:admin or project_id:%(project_id)s"
+
+# Update a channel
+# PATCH  /channels/{channel_uuid}
+# PUT  /channels/{channel_uuid}
+#"channel:update": "role:admin or project_id:%(project_id)s"
+
+# Delete a channel
+# DELETE  /channels/{channel_uuid}
+#"channel:delete": "role:admin or project_id:%(project_id)s"
+

@@ -201,7 +201,8 @@ CREATE_CHANNEL_SCHEMA = schema(
         "properties": {
             # The name of the channel (optional)
             "name": STRING,
-            # The project ID for the channel
+            # The project ID for the channel (optional; defaults to the
+            # caller's project. Setting another project requires admin.)
             "project_id": UUID,
             # The subnet on which the channel will operate (UUID or CIDR) (optional)
             "subnet": SUBNET,
@@ -221,7 +222,7 @@ CREATE_CHANNEL_SCHEMA = schema(
                 "required": ["public_key"],
             },
         },
-        "required": ["project_id", "channel_type", "properties"],
+        "required": ["channel_type", "properties"],
         "additionalProperties": False,
     }
 )
