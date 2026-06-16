@@ -7,7 +7,7 @@ from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
 from oslo_log import log
-from oslo_utils import netutils, uuidutils
+from oslo_utils import netutils, strutils, uuidutils
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, get_neutron_session, route
@@ -43,6 +43,21 @@ def _is_cidr(val):
     return netutils.is_valid_cidr(val) or netutils.is_valid_ipv6_cidr(val)
 
 
+def _is_all_projects(args):
+    """Whether the request opted into listing across all projects.
+
+    The bare flag (`?all_projects`) and truthy values (`=1`/`=true`) enable it,
+    while explicit falsy values (`=0`/`=false`) disable it.
+    """
+    all_projects = args.get("all_projects")
+    if all_projects:
+        try:
+            return strutils.bool_from_string(all_projects, strict=True)
+        except ValueError as exc:
+            raise InvalidParameterValue(str(exc))
+    return "all_projects" in args
+
+
 @route("/channels", blueprint=bp, methods=["GET"])
 def list_channels():
     """Implements API function ListChannels
@@ -62,7 +77,7 @@ def list_channels():
         ]
 
     ctx = request.context
-    project_id = None if request.args.get("all_projects") else ctx.project_id
+    project_id = None if _is_all_projects(request.args) else ctx.project_id
     authorize("channel:get", ctx, {"project_id": project_id})
 
     port_filters = {} if project_id is None else {"project_id": project_id}

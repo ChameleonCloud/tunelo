@@ -116,6 +116,32 @@ class TestListChannels(ChannelsAuthzTestBase):
         self.neutron.list_ports.assert_called_once_with()
         self.assertEqual({"channels": []}, res)
 
+    def test_admin_bare_all_projects_flag_unscoped(self):
+        self.neutron.list_ports.return_value = {"ports": []}
+
+        with self._request_context("/channels?all_projects", roles=["admin"]):
+            res = channels.list_channels()
+
+        self.neutron.list_ports.assert_called_once_with()
+        self.assertEqual({"channels": []}, res)
+
+    def test_all_projects_explicit_false_is_scoped(self):
+        # An explicit falsy value disables all-projects mode.
+        self.neutron.list_ports.return_value = {"ports": []}
+
+        with self._request_context("/channels?all_projects=0"):
+            res = channels.list_channels()
+
+        self.neutron.list_ports.assert_called_once_with(project_id=PROJECT_A)
+        self.assertEqual({"channels": []}, res)
+
+    def test_all_projects_invalid_value_rejected(self):
+        with self._request_context("/channels?all_projects=notabool"):
+            res = channels.list_channels()
+
+        self.assertEqual(400, self._status_code(res))
+        self.neutron.list_ports.assert_not_called()
+
 
 class TestGetChannel(ChannelsAuthzTestBase):
     def setUp(self):
