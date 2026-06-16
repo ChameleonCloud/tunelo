@@ -74,6 +74,31 @@ class ChannelsAuthzTestBase(base.BaseTestCase):
 
         return _ContextInjector(ctx)
 
+    def _set_ports(self, ports=None):
+        """Model neutron list_ports filtering.
+
+        list_channels queries spokes (optionally scoped to a project) and hubs
+        (across all projects) with separate calls; model the real neutron
+        behaviour by honouring the project_id and device_owner filters against
+        a single set of ports.
+        """
+        ports = ports or []
+
+        def _side_effect(**kwargs):
+            pid = kwargs.get("project_id")
+            owner = kwargs.get("device_owner")
+
+            def _match(p):
+                if pid is not None and p["project_id"] != pid:
+                    return False
+                if owner is not None and p["device_owner"] != owner:
+                    return False
+                return True
+
+            return {"ports": [p for p in ports if _match(p)]}
+
+        self.neutron.list_ports.side_effect = _side_effect
+
     @staticmethod
     def _status_code(res):
         # Handlers return ("", 200) tuples on empty success, dicts on JSON
@@ -88,17 +113,40 @@ class ChannelsAuthzTestBase(base.BaseTestCase):
 
 class TestListChannels(ChannelsAuthzTestBase):
     def test_member_list_is_scoped_to_own_project(self):
-        self.neutron.list_ports.return_value = {
-            "ports": [fake_port(peers=[HUB_UUID])]
-        }
+        self._set_ports([fake_port(peers=[HUB_UUID])])
 
         with self._request_context():
             res = channels.list_channels()
 
-        self.neutron.list_ports.assert_called_once_with(project_id=PROJECT_A)
+        # Spokes are queried scoped to the caller's project.
+        self.neutron.list_ports.assert_any_call(project_id=PROJECT_A)
+        # Hubs looked up separately
+        self.neutron.list_ports.assert_any_call()
         self.assertEqual(1, len(res["channels"]))
         # The representation exposes the owning project (P1).
         self.assertEqual(PROJECT_A, res["channels"][0]["project_id"])
+
+    def test_member_list_resolves_cross_project_hub(self):
+        # The spoke is owned by the device project; its hub is the shared hub
+        # owned by another (service) project. It must still resolve as a peer.
+        self._set_ports(
+            [
+                fake_port(project_id=PROJECT_A, peers=[HUB_UUID]),
+                fake_port(
+                    uuid=HUB_UUID,
+                    device_owner="channel:wireguard:hub",
+                    project_id=PROJECT_B,
+                ),
+            ]
+        )
+
+        with self._request_context():
+            res = channels.list_channels()
+
+        self.assertEqual(1, len(res["channels"]))
+        peers = res["channels"][0]["peers"]
+        self.assertEqual(1, len(peers))
+        self.assertEqual(HUB_UUID, peers[0]["uuid"])
 
     def test_member_all_projects_rejected(self):
         with self._request_context("/channels?all_projects=1"):
@@ -108,33 +156,34 @@ class TestListChannels(ChannelsAuthzTestBase):
         self.neutron.list_ports.assert_not_called()
 
     def test_admin_all_projects_unscoped(self):
-        self.neutron.list_ports.return_value = {"ports": []}
+        self._set_ports([])
 
         with self._request_context(
             "/channels?all_projects=1", roles=["admin"]
         ):
             res = channels.list_channels()
 
-        self.neutron.list_ports.assert_called_once_with()
+        # Spokes are queried with no project filter.
+        self.neutron.list_ports.assert_any_call()
         self.assertEqual({"channels": []}, res)
 
     def test_admin_bare_all_projects_flag_unscoped(self):
-        self.neutron.list_ports.return_value = {"ports": []}
+        self._set_ports([])
 
         with self._request_context("/channels?all_projects", roles=["admin"]):
             res = channels.list_channels()
 
-        self.neutron.list_ports.assert_called_once_with()
+        self.neutron.list_ports.assert_any_call()
         self.assertEqual({"channels": []}, res)
 
     def test_all_projects_explicit_false_is_scoped(self):
         # An explicit falsy value disables all-projects mode.
-        self.neutron.list_ports.return_value = {"ports": []}
+        self._set_ports([])
 
         with self._request_context("/channels?all_projects=0"):
             res = channels.list_channels()
 
-        self.neutron.list_ports.assert_called_once_with(project_id=PROJECT_A)
+        self.neutron.list_ports.assert_any_call(project_id=PROJECT_A)
         self.assertEqual({"channels": []}, res)
 
     def test_all_projects_invalid_value_rejected(self):
@@ -178,6 +227,33 @@ class TestGetChannel(ChannelsAuthzTestBase):
             res = channels.get_channel(SPOKE_UUID)
 
         self.assertEqual(200, self._status_code(res))
+
+    def test_peer_hub_in_other_project(self):
+        # Spoke owned by the device project; its hub is the shared hub owned by
+        # another (service) project. The hub must still resolve as a peer.
+        self.neutron.show_port.return_value = {
+            "port": fake_port(project_id=PROJECT_A, peers=[HUB_UUID])
+        }
+        self.neutron.list_ports.return_value = {
+            "ports": [
+                fake_port(
+                    uuid=HUB_UUID,
+                    device_owner="channel:wireguard:hub",
+                    project_id=PROJECT_B,
+                )
+            ]
+        }
+
+        with self._request_context(f"/channels/{SPOKE_UUID}"):
+            res = channels.get_channel(SPOKE_UUID)
+
+        self.assertEqual(200, self._status_code(res))
+        # The hub lookup must not be constrained to the spoke's project.
+        self.neutron.list_ports.assert_called_once_with(
+            device_owner="channel:wireguard:hub"
+        )
+        self.assertEqual(1, len(res["peers"]))
+        self.assertEqual(HUB_UUID, res["peers"][0]["uuid"])
 
 
 class TestDestroyChannel(ChannelsAuthzTestBase):

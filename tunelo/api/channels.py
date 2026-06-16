@@ -80,10 +80,23 @@ def list_channels():
     project_id = None if _is_all_projects(request.args) else ctx.project_id
     authorize("channel:get", ctx, {"project_id": project_id})
 
-    port_filters = {} if project_id is None else {"project_id": project_id}
-    ports = get_neutron_client().list_ports(**port_filters)["ports"]
-    spokes = _filter_by_device_owner(spoke_device_owner_pattern, ports)
-    hubs = _filter_by_device_owner(hub_device_owner_pattern, ports)
+    neutron = get_neutron_client()
+
+    port_filters = {}
+    if project_id is not None:
+        port_filters["project_id"]=project_id
+
+    spokes = _filter_by_device_owner(
+        spoke_device_owner_pattern,
+        neutron.list_ports(**port_filters)["ports"],
+    )
+    # Hubs are shared infrastructure and may live in a different project than
+    # the spoke, so look them up across all projects. match_spokes_to_hubs only
+    # keeps hubs that a spoke explicitly peers with
+    hubs = _filter_by_device_owner(
+        hub_device_owner_pattern,
+        neutron.list_ports()["ports"],
+    )
 
     spoke_peers = match_spokes_to_hubs(spokes, hubs)
 
@@ -139,13 +152,10 @@ def get_channel_by_uuid(uuid) -> "Tuple[dict, dict[str, List[dict]]]":
     if not spoke_device_owner_pattern.match(get_channel_device_owner(spoke)):
         raise NotFound(f"Channel {uuid} not found.")
 
-    # Retrieve potential peers by looking for hubs on the same project as the spoke
+    # Retrieve potential peers across all projects
     channel_type = get_channel_type(spoke)
     hub_owner = f"channel:{channel_type}:hub"
-    project_id = get_channel_project_id(spoke)
-    hubs = neutron.list_ports(device_owner=hub_owner, project_id=project_id)[
-        "ports"
-    ]
+    hubs = neutron.list_ports(device_owner=hub_owner)["ports"]
     # Confirm that a hub is our peer by matching it to our public key
     spoke_to_hubs_map = match_spokes_to_hubs([spoke], hubs)
 
