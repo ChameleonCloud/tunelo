@@ -29,6 +29,12 @@ tunelo = "tunelo.conf.opts:list_opts"
 [project.entry-points."oslo.config.opts.defaults"]
 tunelo = "tunelo.conf.opts:update_opt_defaults"
 
+[project.entry-points."oslo.policy.enforcer"]
+tunelo = "tunelo.common.policy:get_oslo_policy_enforcer"
+
+[project.entry-points."oslo.policy.policies"]
+"tunelo.api" = "tunelo.common.policy:list_policies"
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"

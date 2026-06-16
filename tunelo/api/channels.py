@@ -2,12 +2,12 @@ import random
 from ipaddress import IPv4Address, IPv4Network, ip_address, ip_network
 from typing import List, Tuple
 
-from flask import Blueprint
+from flask import Blueprint, request
 from neutronclient.common.exceptions import IpAddressAlreadyAllocatedClient
 from neutronclient.common.exceptions import NotFound as NeutronNotFound
 from neutronclient.common.exceptions import PortNotFoundClient
 from oslo_log import log
-from oslo_utils import netutils, uuidutils
+from oslo_utils import netutils, strutils, uuidutils
 
 from tunelo.api import schema
 from tunelo.api.hooks import get_neutron_client, get_neutron_session, route
@@ -31,6 +31,7 @@ from tunelo.common.exception import (
     MalformedChannel,
     NotFound,
 )
+from tunelo.common.policy import authorize
 from tunelo.conf import CONF
 
 LOG = log.getLogger(__name__)
@@ -42,13 +43,30 @@ def _is_cidr(val):
     return netutils.is_valid_cidr(val) or netutils.is_valid_ipv6_cidr(val)
 
 
+def _is_all_projects(args):
+    """Whether the request opted into listing across all projects.
+
+    The bare flag (`?all_projects`) and truthy values (`=1`/`=true`) enable it,
+    while explicit falsy values (`=0`/`=false`) disable it.
+    """
+    all_projects = args.get("all_projects")
+    if all_projects:
+        try:
+            return strutils.bool_from_string(all_projects, strict=True)
+        except ValueError as exc:
+            raise InvalidParameterValue(str(exc))
+    return "all_projects" in args
+
+
 @route("/channels", blueprint=bp, methods=["GET"])
 def list_channels():
     """Implements API function ListChannels
 
-    All Neutron ports are pulled down and then channel spokes and hubs are derived
-    locally. Peer hubs for each spoke are mapped, and then a list of
-    channel representations is returned for all of the spokes
+    Neutron ports for the caller's project are pulled down and then channel
+    spokes and hubs are derived locally. Peer hubs for each spoke are mapped,
+    and then a list of channel representations is returned for all of the
+    spokes. Admins may pass ``?all_projects`` to list channels across all
+    projects.
     """
 
     def _filter_by_device_owner(filter_regex, port_list):
@@ -58,7 +76,12 @@ def list_channels():
             if filter_regex.match(get_channel_device_owner(p))
         ]
 
-    ports = get_neutron_client().list_ports()["ports"]
+    ctx = request.context
+    project_id = None if _is_all_projects(request.args) else ctx.project_id
+    authorize("channel:get", ctx, {"project_id": project_id})
+
+    port_filters = {} if project_id is None else {"project_id": project_id}
+    ports = get_neutron_client().list_ports(**port_filters)["ports"]
     spokes = _filter_by_device_owner(spoke_device_owner_pattern, ports)
     hubs = _filter_by_device_owner(hub_device_owner_pattern, ports)
 
@@ -87,6 +110,12 @@ def get_channel(uuid):
             a spoke port.
     """
     spoke, peers = get_channel_by_uuid(uuid)
+
+    authorize(
+        "channel:get",
+        request.context,
+        {"project_id": get_channel_project_id(spoke)},
+    )
 
     return create_channel_representation(spoke, peers)
 
@@ -166,7 +195,15 @@ def create_channel(channel_definition=None):
     properties = channel_definition[schema.KEY_PROPERTIES]
 
     name = channel_definition.get(schema.KEY_NAME)
-    project_id = channel_definition[schema.KEY_PROJECT_ID]
+    ctx = request.context
+    project_id = (
+        channel_definition.get(schema.KEY_PROJECT_ID) or ctx.project_id
+    )
+    if not project_id:
+        raise InvalidParameterValue(
+            "project_id is required when the request is not project-scoped."
+        )
+    authorize("channel:create", ctx, {"project_id": project_id})
     subnet = channel_definition.get(schema.KEY_SUBNET)
     channel_address = channel_definition.get(schema.KEY_CHANNEL_ADDRESS)
 
@@ -202,12 +239,24 @@ def destroy_channel(uuid):
     """Destroys a channel by UUID
 
     Deletes a spoke port.
-    Deletes the hub if this action would cause the hub to have zero peers
+    TODO: Delete the hub if this action would cause the hub to have zero
+    peers (not implemented).
 
     Args:
         uuid: the UUID of the channel must be equivalent to the ``id`` field
         of a spoke port.
     """
+    # Resolve the channel first: this raises NotFound for ports that do not
+    # exist or are not spoke ports. Otherwise, would permit arbitrary neutron
+    # ports to be deleted.
+    spoke, _ = get_channel_by_uuid(uuid)
+
+    authorize(
+        "channel:delete",
+        request.context,
+        {"project_id": get_channel_project_id(spoke)},
+    )
+
     neutron = get_neutron_client()
 
     try:
@@ -226,6 +275,12 @@ def destroy_channel(uuid):
 def update_channel(uuid, patch=None):
     """Implements the UpdateChannel API function"""
     existing, _ = get_channel_by_uuid(uuid)
+
+    authorize(
+        "channel:update",
+        request.context,
+        {"project_id": get_channel_project_id(existing)},
+    )
 
     channel_type = get_channel_type(existing)
     if channel_type not in schema.VALID_CHANNEL_TYPES:
