@@ -97,6 +97,8 @@ class TestListChannels(ChannelsAuthzTestBase):
 
         self.neutron.list_ports.assert_called_once_with(project_id=PROJECT_A)
         self.assertEqual(1, len(res["channels"]))
+        # The representation exposes the owning project (P1).
+        self.assertEqual(PROJECT_A, res["channels"][0]["project_id"])
 
     def test_member_all_projects_rejected(self):
         with self._request_context("/channels?all_projects=1"):

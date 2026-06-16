@@ -42,6 +42,7 @@ def create_channel_representation(port, peers=None):
     return {
         "uuid": get_channel_uuid(port),
         "channel_type": get_channel_type(port),
+        "project_id": get_channel_project_id(port),
         "peers": [create_spoke_peer_representation(peer) for peer in peers],
         "status": get_channel_status(port),
         "properties": get_channel_properties(port),
