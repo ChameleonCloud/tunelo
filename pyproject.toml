@@ -5,6 +5,7 @@ description = "Chameleon on-demand tunnel provisioning service"
 authors = [{ name = "Chameleon", email = "contact@chameleoncloud.org" }]
 requires-python = ">=3.9"
 dependencies = [
+    "eventlet",
     "Flask",
     "jsonschema",
     "keystonemiddleware",
