@@ -1,18 +1,56 @@
 name: unittest
 on:
   push:
-    branches: [ main ]
+    branches:
+      - 'chameleoncloud/*'
   pull_request:
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
     steps:
     - uses: actions/checkout@v7
-    - name: Set up Python 3.9
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v7
       with:
-        python-version: 3.9
-    - name: install tox
-      run: pip install tox
+        python-version: ${{ matrix.python-version }}
+    - name: install tox and subunit tools
+      run: pip install tox python-subunit junitxml
     - name: Run tests
       run: tox -e py
+    - name: Convert stestr results to junit
+      if: (!cancelled())
+      run: .tox/py/bin/stestr last --subunit | subunit2junitxml > test-results.xml || true
+    - name: Upload test results
+      if: (!cancelled())
+      uses: actions/upload-artifact@v7
+      with:
+        name: test-results-py${{ matrix.python-version }}
+        path: test-results.xml
+  publish-test-results:
+    needs: build
+    # dependabot and fork PRs get a read-only token, which can't publish results
+    if: >-
+      !cancelled() &&
+      (github.event_name != 'pull_request' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.actor != 'dependabot[bot]'))
+    runs-on: ubuntu-24.04
+    permissions:
+      checks: write
+      pull-requests: write
+    steps:
+    - uses: actions/download-artifact@v8
+      with:
+        path: artifacts
+    - name: Publish test results
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      with:
+        files: artifacts/**/*.xml
