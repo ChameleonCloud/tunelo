@@ -2,7 +2,6 @@ import traceback
 from functools import wraps
 
 from flask import Blueprint, request
-from keystoneauth1 import session as ks_session
 from keystonemiddleware.auth_token import AuthProtocol
 from keystonemiddleware.auth_token._request import _AuthTokenRequest
 from neutronclient.v2_0 import client as neutron_client
@@ -99,7 +98,7 @@ def get_neutron_session():
     global _NEUTRON_SESSION
     if not _NEUTRON_SESSION:
         auth = keystone.get_auth("neutron")
-        _NEUTRON_SESSION = ks_session.Session(auth=auth)
+        _NEUTRON_SESSION = keystone.get_session("neutron", auth=auth)
     return _NEUTRON_SESSION
 
 
@@ -111,7 +110,11 @@ def get_neutron_client():
     global _NEUTRON_CLIENT
     if not _NEUTRON_CLIENT:
         _NEUTRON_CLIENT = neutron_client.Client(
-            session=get_neutron_session(), raise_errors=False
+            session=get_neutron_session(),
+            interface=CONF.neutron.valid_interfaces,
+            region_name=CONF.neutron.region_name,
+            endpoint_override=CONF.neutron.endpoint_override,
+            raise_errors=False,
         )
     return _NEUTRON_CLIENT
 
