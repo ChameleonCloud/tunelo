@@ -39,14 +39,6 @@
 # Deprecated group/name - [DEFAULT]/logdir
 #log_dir = <None>
 
-# Uses logging handler designed to watch file system. When log
-# file is moved or removed this handler will open a new log
-# file with specified path instantaneously. It makes sense
-# only if log_file option is specified and Linux platform is
-# used. This option is ignored if log_config_append is set.
-# (boolean value)
-#watch_log_file = false
-
 # Use syslog for logging. Existing syslog format is DEPRECATED
 # and will be changed later to honor RFC5424. This option is
 # ignored if log_config_append is set. (boolean value)
@@ -71,8 +63,11 @@
 # log_config_append is set. (boolean value)
 #use_stderr = false
 
-# Log output to Windows Event Log. (boolean value)
-#use_eventlog = false
+# (Optional) Set the 'color' key according to log levels. This
+# option takes effect only when logging to stderr or stdout is
+# used. This option is ignored if log_config_append is set.
+# (boolean value)
+#log_color = false
 
 # The amount of time before the log files are rotated. This
 # option is ignored unless log_rotation_type is set to
@@ -152,10 +147,17 @@
 # (integer value)
 #rate_limit_burst = 0
 
-# Log level name used by rate limiting: CRITICAL, ERROR, INFO,
-# WARNING, DEBUG or empty string. Logs with level greater or
-# equal to rate_limit_except_level are not filtered. An empty
-# string means that all levels are filtered. (string value)
+# Log level name used by rate limiting. Logs with level
+# greater or equal to rate_limit_except_level are not
+# filtered. An empty string means that all levels are
+# filtered. (string value)
+# Possible values:
+# CRITICAL - <No description provided>
+# ERROR - <No description provided>
+# INFO - <No description provided>
+# WARNING - <No description provided>
+# DEBUG - <No description provided>
+# '' - <No description provided>
 #rate_limit_except_level = CRITICAL
 
 # Enables or disables fatal status of deprecations. (boolean
@@ -166,23 +168,31 @@
 # From oslo.service.service
 #
 
-# Enable eventlet backdoor.  Acceptable values are 0, <port>,
-# and <start>:<end>, where 0 results in listening on a random
-# tcp port number; <port> results in listening on the
-# specified port number (and not enabling backdoor if that
+# DEPRECATED: Enable eventlet backdoor.  Acceptable values are
+# 0, <port>, and <start>:<end>, where 0 results in listening
+# on a random tcp port number; <port> results in listening on
+# the specified port number (and not enabling backdoor if that
 # port is in use); and <start>:<end> results in listening on
 # the smallest unused port number within the specified range
-# of port numbers.  The chosen port is displayed in the
+# of port numbers. The chosen port is displayed in the
 # service's log file. (string value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'backdoor_port' option is deprecated and will be
+# removed in a future release.
 #backdoor_port = <None>
 
-# Enable eventlet backdoor, using the provided path as a unix
-# socket that can receive connections. This option is mutually
-# exclusive with 'backdoor_port' in that only one should be
-# provided. If both are provided then the existence of this
-# option overrides the usage of that option. Inside the path
-# {pid} will be replaced with the PID of the current process.
-# (string value)
+# DEPRECATED: Enable eventlet backdoor, using the provided
+# path as a unix socket that can receive connections. This
+# option is mutually exclusive with 'backdoor_port' in that
+# only one should be provided. If both are provided then the
+# existence of this option overrides the usage of that option.
+# Inside the path {pid} will be replaced with the PID of the
+# current process. (string value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'backdoor_socket' option is deprecated and will
+# be removed in a future release.
 #backdoor_socket = <None>
 
 # Enables or disables logging values of all registered options
@@ -192,6 +202,67 @@
 # Specify a timeout after which a gracefully shutdown server
 # will exit. Zero value means endless wait. (integer value)
 #graceful_shutdown_timeout = 60
+
+#
+# From tunelo
+#
+
+# A default subnet (name or UUID) to use in case no subnet is
+# specified by the end-user. Channels will be allocated on
+# this subnet. (string value)
+#default_subnet = <None>
+
+# Directory where the tunelo python module is installed.
+# (string value)
+#
+# This option has a sample default set, which means that
+# its actual default value may vary from the one documented
+# below.
+#pybasedir = /usr/lib/python/site-packages/tunelo/tunelo
+
+# Directory where tunelo binaries are installed. (string
+# value)
+#bindir = $pybasedir/bin
+
+# Top-level directory for maintaining tunelo's state. (string
+# value)
+#state_path = $pybasedir
+
+# Name of this node. This can be an opaque identifier. It is
+# not necessarily a hostname, FQDN, or IP address. However,
+# the node name must be valid within an AMQP key, and if using
+# ZeroMQ (will be removed in the Stein release), a valid
+# hostname, FQDN, or IP address. (string value)
+#
+# This option has a sample default set, which means that
+# its actual default value may vary from the one documented
+# below.
+#host = localhost
+
+# Which RPC transport implementation to use between conductor
+# and API services (string value)
+# Possible values:
+# oslo - use oslo.messaging transport
+# json-rpc - use JSON RPC transport
+#rpc_transport = oslo
+
+# Used if there is a formatting error when generating an
+# exception message (a programming error). If True, raise an
+# exception; if False, use the unformatted message. (boolean
+# value)
+#fatal_exception_format_errors = false
+
+# Path to the rootwrap configuration file to use for running
+# commands as root. (string value)
+#rootwrap_config = /etc/tunelo/rootwrap.conf
+
+# Temporary working directory, default is Python temp dir.
+# (string value)
+#
+# This option has a sample default set, which means that
+# its actual default value may vary from the one documented
+# below.
+#tempdir = /tmp
 
 
 [api]
@@ -386,6 +457,36 @@
 # value)
 #memcache_secret_key = <None>
 
+# (Optional) Global toggle for TLS usage when comunicating
+# with the caching servers. (boolean value)
+#memcache_tls_enabled = false
+
+# (Optional) Path to a file of concatenated CA certificates in
+# PEM format necessary to establish the caching server's
+# authenticity. If tls_enabled is False, this option is
+# ignored. (string value)
+#memcache_tls_cafile = <None>
+
+# (Optional) Path to a single file in PEM format containing
+# the client's certificate as well as any number of CA
+# certificates needed to establish the certificate's
+# authenticity. This file is only required when client side
+# authentication is necessary. If tls_enabled is False, this
+# option is ignored. (string value)
+#memcache_tls_certfile = <None>
+
+# (Optional) Path to a single file containing the client's
+# private key in. Otherwhise the private key will be taken
+# from the file specified in tls_certfile. If tls_enabled is
+# False, this option is ignored. (string value)
+#memcache_tls_keyfile = <None>
+
+# (Optional) Set the available ciphers for sockets created
+# with the TLS context. It should be a string in the OpenSSL
+# cipher list format. If not specified, all OpenSSL enabled
+# ciphers will be available. (string value)
+#memcache_tls_allowed_ciphers = <None>
+
 # (Optional) Number of seconds memcached server is considered
 # dead before it is tried again. (integer value)
 #memcache_pool_dead_retry = 300
@@ -437,17 +538,30 @@
 # currently only affects the allow_expired check. (list value)
 #service_token_roles = service
 
-# For backwards compatibility reasons we must let valid
-# service tokens pass that don't pass the service_token_roles
-# check as valid. Setting this true will become the default in
-# a future release and should be enabled if possible. (boolean
-# value)
-#service_token_roles_required = false
+# When set to True, service tokens must contain a role from
+# the service_token_roles list to be considered valid. This
+# prevents end-user tokens from being used as service tokens
+# and ensures proper service-to-service authentication.
+# Setting this to False is NOT RECOMMENDED as it allows any
+# valid token to be used as a service token, which can bypass
+# access-rule checks and weaken composite-auth protections.
+# (boolean value)
+#service_token_roles_required = true
 
 # The name or type of the service as it appears in the service
 # catalog. This is used to validate tokens that have
 # restricted access rules. (string value)
 #service_type = <None>
+
+# Enable the SASL(Simple Authentication and Security Layer) if
+# the SASL_enable is true, else disable. (boolean value)
+#memcache_sasl_enabled = false
+
+# the user name for the SASL (string value)
+#memcache_username =
+
+# the username password for SASL (string value)
+#memcache_password =
 
 # Authentication type to load (string value)
 # Deprecated group/name - [keystone_authtoken]/auth_plugin
@@ -456,6 +570,145 @@
 # Config Section from which to load plugin specific options
 # (string value)
 #auth_section = <None>
+
+
+[neutron]
+
+#
+# From tunelo
+#
+
+# Authentication URL (string value)
+#auth_url = <None>
+
+# Authentication type to load (string value)
+# Deprecated group/name - [neutron]/auth_plugin
+#auth_type = <None>
+
+# PEM encoded Certificate Authority to use when verifying
+# HTTPs connections. (string value)
+#cafile = <None>
+
+# PEM encoded client certificate cert file (string value)
+#certfile = <None>
+
+# Collect per-API call timing information. (boolean value)
+#collect_timing = false
+
+# The maximum number of retries that should be attempted for
+# connection errors. (integer value)
+#connect_retries = <None>
+
+# Delay (in seconds) between two retries for connection
+# errors. If not set, exponential retry starting with 0.5
+# seconds up to a maximum of 60 seconds is used. (floating
+# point value)
+#connect_retry_delay = <None>
+
+# Domain ID to scope to (string value)
+#domain_id = <None>
+
+# Domain name to scope to (string value)
+#domain_name = <None>
+
+# Always use this endpoint URL for requests for this client.
+# NOTE: The unversioned endpoint should be specified here; to
+# request a particular API version, use the `version`, `min-
+# version`, and/or `max-version` options. (string value)
+#endpoint_override = <None>
+
+# Verify HTTPS connections. (boolean value)
+#insecure = false
+
+# PEM encoded client certificate key file (string value)
+#keyfile = <None>
+
+# The maximum major version of a given API, intended to be
+# used as the upper bound of a range with min_version.
+# Mutually exclusive with version. (string value)
+#max_version = <None>
+
+# The minimum major version of a given API, intended to be
+# used as the lower bound of a range with max_version.
+# Mutually exclusive with version. If min_version is given
+# with no max_version it is as if max version is "latest".
+# (string value)
+#min_version = <None>
+
+# User's password (string value)
+#password = <None>
+
+# Domain ID containing project (string value)
+#project_domain_id = <None>
+
+# Domain name containing project (string value)
+#project_domain_name = <None>
+
+# Project ID to scope to (string value)
+#project_id = <None>
+
+# Project name to scope to (string value)
+#project_name = <None>
+
+# The default region_name for endpoint URL discovery. (string
+# value)
+#region_name = <None>
+
+# List of retriable HTTP status codes that should be retried.
+# If not set default to  [503] (list value)
+#retriable_status_codes = <None>
+
+# The default service_name for endpoint URL discovery. (string
+# value)
+#service_name = <None>
+
+# The default service_type for endpoint URL discovery. (string
+# value)
+#service_type = network
+
+# Log requests to multiple loggers. (boolean value)
+#split_loggers = false
+
+# The maximum number of retries that should be attempted for
+# retriable HTTP status codes. (integer value)
+#status_code_retries = <None>
+
+# Delay (in seconds) between two retries for retriable status
+# codes. If not set, exponential retry starting with 0.5
+# seconds up to a maximum of 60 seconds is used. (floating
+# point value)
+#status_code_retry_delay = <None>
+
+# Scope for system operations (string value)
+#system_scope = <None>
+
+# Timeout value for http requests (integer value)
+#timeout = <None>
+
+# ID of the trust to use as a trustee use (string value)
+#trust_id = <None>
+
+# User's domain ID (string value)
+#user_domain_id = <None>
+
+# User's domain name (string value)
+#user_domain_name = <None>
+
+# User's user ID (string value)
+#user_id = <None>
+
+# User's username (string value)
+# Deprecated group/name - [neutron]/user_name
+#username = <None>
+
+# List of interfaces, in order of preference, for endpoint
+# URL. (list value)
+#valid_interfaces = internal,public
+
+# Minimum Major API version within a given Major API version
+# for endpoint URL discovery. Mutually exclusive with
+# min_version and max_version (string value)
+#version = <None>
 
 
 [oslo_middleware]
@@ -476,14 +729,21 @@
 # From oslo.policy
 #
 
-# This option controls whether or not to enforce scope when
-# evaluating policies. If ``True``, the scope of the token
-# used in the request is compared to the ``scope_types`` of
-# the policy being enforced. If the scopes do not match, an
-# ``InvalidScope`` exception will be raised. If ``False``, a
-# message will be logged informing operators that policies are
-# being invoked with mismatching scope. (boolean value)
-#enforce_scope = false
+# DEPRECATED: This option controls whether or not to enforce
+# scope when evaluating policies. If ``True``, the scope of
+# the token used in the request is compared to the
+# ``scope_types`` of the policy being enforced. If the scopes
+# do not match, an ``InvalidScope`` exception will be raised.
+# If ``False``, a message will be logged informing operators
+# that policies are being invoked with mismatching scope.
+# (boolean value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: This configuration was added temporarily to
+# facilitate a smooth transition to the new RBAC. OpenStack
+# will always enforce scope checks. This configuration option
+# is deprecated and will be removed in the 2025.2 cycle.
+#enforce_scope = true
 
 # This option controls whether or not to use old deprecated
 # defaults when evaluating policies. If ``True``, the old
@@ -497,13 +757,13 @@
 # new policy check string, allowing for a graceful upgrade
 # experience between releases with new policies, which is the
 # default behavior. (boolean value)
-#enforce_new_defaults = false
+#enforce_new_defaults = true
 
 # The relative or absolute path of a file that maps roles to
 # permissions for a given service. Relative paths must be
 # specified in relation to the configuration file setting this
 # option. (string value)
-#policy_file = policy.json
+#policy_file = policy.yaml
 
 # Default rule. Enforced when a requested rule is not found.
 # (string value)
@@ -540,6 +800,11 @@
 # Absolute path client key file REST based policy check
 # (string value)
 #remote_ssl_client_key_file = <None>
+
+# Timeout in seconds for REST based policy check (floating
+# point value)
+# Minimum value: 0
+#remote_timeout = 60
 
 
 [oslo_reports]
@@ -605,6 +870,20 @@
 # analyzed this way.
 #  (boolean value)
 #trace_sqlalchemy = false
+
+#
+# Enable python requests package profiling.
+#
+# Supported drivers: jaeger+otlp
+#
+# Default value is False.
+#
+# Possible values:
+#
+# * True: Enables requests profiling.
+# * False: Disables requests profiling.
+#  (boolean value)
+#trace_requests = false
 
 #
 # Secret key(s) to use for encrypting context data for
@@ -704,32 +983,80 @@
 #filter_error_trace = false
 
 
+[profiler_jaeger]
+
+#
+# From osprofiler
+#
+
+#
+# Set service name prefix to Jaeger service name.
+#  (string value)
+#service_name_prefix = <None>
+
+#
+# Set process tracer tags.
+#  (dict value)
+#process_tags =
+
+
+[profiler_otlp]
+
+#
+# From osprofiler
+#
+
+#
+# Set service name prefix to OTLP exporters.
+#  (string value)
+#service_name_prefix = <None>
+
+
 [ssl]
 
 #
 # From oslo.service.sslutils
 #
 
-# CA certificate file to use to verify connecting clients.
-# (string value)
-# Deprecated group/name - [DEFAULT]/ssl_ca_file
+# DEPRECATED: CA certificate file to use to verify connecting
+# clients. (string value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'ca_file' option is deprecated and will be
+# removed in a future release.
 #ca_file = <None>
 
-# Certificate file to use when starting the server securely.
-# (string value)
-# Deprecated group/name - [DEFAULT]/ssl_cert_file
+# DEPRECATED: Certificate file to use when starting the server
+# securely. (string value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'cert_file' option is deprecated and will be
+# removed in a future release.
 #cert_file = <None>
 
-# Private key file to use when starting the server securely.
-# (string value)
-# Deprecated group/name - [DEFAULT]/ssl_key_file
+# DEPRECATED: Private key file to use when starting the server
+# securely. (string value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'key_file' option is deprecated and will be
+# removed in a future release.
 #key_file = <None>
 
-# SSL version to use (valid only if SSL enabled). Valid values
-# are TLSv1 and SSLv23. SSLv2, SSLv3, TLSv1_1, and TLSv1_2 may
-# be available on some distributions. (string value)
+# DEPRECATED: SSL version to use (valid only if SSL enabled).
+# Valid values are TLSv1 and SSLv23. SSLv2, SSLv3, TLSv1_1,
+# and TLSv1_2 may be available on some distributions. (string
+# value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'version' option is deprecated and will be
+# removed in a future release.
 #version = <None>
 
-# Sets the list of available ciphers. value should be a string
-# in the OpenSSL cipher list format. (string value)
+# DEPRECATED: Sets the list of available ciphers. value should
+# be a string in the OpenSSL cipher list format. (string
+# value)
+# This option is deprecated for removal.
+# Its value may be silently ignored in the future.
+# Reason: The 'ciphers' option is deprecated and will be
+# removed in a future release.
 #ciphers = <None>

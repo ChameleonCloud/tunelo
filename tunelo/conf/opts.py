@@ -1,6 +1,7 @@
 from oslo_log import log
 
 import tunelo.conf
+from tunelo.common import auth
 
 _opts = [
     (conf.GROUP, conf.opts)
@@ -8,6 +9,11 @@ _opts = [
         tunelo.conf.default,
         tunelo.conf.api,
     ]
+] + [
+    (
+        tunelo.conf.neutron.GROUP,
+        auth.add_auth_opts([], service_type="network"),
+    ),
 ]
 
 

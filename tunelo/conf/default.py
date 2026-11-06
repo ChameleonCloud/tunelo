@@ -94,6 +94,6 @@ utils_opts = [
     ),
 ]
 
-opts = chain(
-    *[default_opts, path_opts, service_opts, exc_log_opts, utils_opts]
+opts = list(
+    chain(*[default_opts, path_opts, service_opts, exc_log_opts, utils_opts])
 )
